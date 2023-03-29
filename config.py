@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import os
-from filo import pfam, metadados_filogeny
+from filo import pfam, analysis
 
 # definindo as variáveis
 
@@ -18,4 +18,4 @@ pfam(seq_list=seq_list, seq_path=seq_path, dicio=dicio, pfam_path=pfam_path, reg
 print('\n Iniciando análises de prospecção de genes')
 outdir = ''
 domain = []
-metadados_filogeny(outdir=outdir, domain=domain, seq_list=seq_list, seq_path=seq_path, dicio=dicio, regex=regex)
+analysis(outdir=outdir, domain=domain, seq_list=seq_list, seq_path=seq_path, dicio=dicio, regex=regex)
