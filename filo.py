@@ -24,7 +24,7 @@ def pfam(seq_list, seq_path, dicio, pfam_path, regex):
     
     """
     # Registra o início da análise
-    print(f'Início pfam(): {time.strftime("%d/%m/%Y %H:%M:%S %A", time.localtime(time.time()))}')
+    print(f'Início: {time.strftime("%d/%m/%Y %H:%M:%S %A", time.localtime(time.time()))}')
     
     # Nomeia os diretórios de saída
     dir_name = f'out.pfam'
@@ -73,9 +73,9 @@ def pfam(seq_list, seq_path, dicio, pfam_path, regex):
         df.to_csv(f'{dir_name}/{assembly}.csv', index=False)
         
     # Registra o fim da análise
-    print(f'Fim pfam(): {time.strftime("%d/%m/%Y %H:%M:%S %A", time.localtime(time.time()))}')
+    print(f'Fim: {time.strftime("%d/%m/%Y %H:%M:%S %A", time.localtime(time.time()))}')
         
-def metadados_filogeny(outdir, domain, seq_list, seq_path, dicio,regex):
+def analysis(outdir, domain, seq_list, seq_path, dicio,regex):
     """
     Parâmetros:
     
@@ -92,7 +92,7 @@ def metadados_filogeny(outdir, domain, seq_list, seq_path, dicio,regex):
 
     """
     # Registra o início da análise 
-    print(f'\n Início metadados_filogeny(): {time.strftime("%d/%m/%Y %H:%M:%S %A", time.localtime(time.time()))}')
+    print(f'\n Início: {time.strftime("%d/%m/%Y %H:%M:%S %A", time.localtime(time.time()))}')
     #####################################################################################################   
     # Nomeia os diretórios de saída
     metadados_dirs = [f'out.{directory}' for directory in [outdir,
@@ -276,5 +276,5 @@ def metadados_filogeny(outdir, domain, seq_list, seq_path, dicio,regex):
     os.system(f'iqtree2 -s {out_iqtree} -nt 8 -quiet -B 1000 -alrt 1000')
     
     # Registra o fim da análise
-    print(f'Fim metadados_filogeny(): {time.strftime("%d/%m/%Y %H:%M:%S %A", time.localtime(time.time()))}')
+    print(f'Fim: {time.strftime("%d/%m/%Y %H:%M:%S %A", time.localtime(time.time()))}')
     ###############################################################################################       
