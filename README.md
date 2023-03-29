@@ -1,4 +1,4 @@
-# bioanalysis
+# Domain-based gene mining for phylogenetic database construction
 
 This repository contains two Python scripts: filo.py and config.py.
 
