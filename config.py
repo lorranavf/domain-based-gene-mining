@@ -11,6 +11,7 @@ regex = ''
 seq_path = ''
 seq_list = os.listdir(seq_path)
 
+# iniciando a obtenção dos bancos de dados e árvore filogenética
 
 print('\n Obtendo base de dados')
 pfam(seq_list=seq_list, seq_path=seq_path, dicio=dicio, pfam_path=pfam_path, regex=regex)
