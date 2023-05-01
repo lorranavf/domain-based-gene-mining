@@ -39,7 +39,7 @@ dicio = {'specie': ['code', 'abreviation']}
 regex = 'regular_expression_to_identify_files'
 
 print('\n Starting gene prospecting analyses')
-analysis(outdir=outdir, domain=domain, seq_list=seq_list, seq_path=seq_path, dicio=dicio, regex=regex)
+analysis(outdir, domain, seq_list, seq_path, dicio, regex)
 ``` 
 
 ## Requirements
