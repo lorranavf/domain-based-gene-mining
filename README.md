@@ -1,22 +1,17 @@
 # Domain-based gene mining for phylogenetic database construction
 
-This repository contains one Python script: gene_mining.py, and dependencies.py
-
-## Phylogenetic analysis toolkit
-
+This repository contains two Python scripts: gene_mining.py, and dependencies.py:
 
 #### dependencies.py
 This script checks the dependencies required for running a specific program. It verifies the presence of both Python libraries and external programs in the environment.
-To run the script, open a terminal or command prompt and navigate to the directory where the dependencies.py script is located. 
-
-Then, use the following command:
+To run the script, open a terminal or command prompt and navigate to the directory where the dependencies.py script is located. Then, use the following command:
 
 ```
 python dependencies.py
 ```
 
 #### gene_mining.py
-This script performs domain analysis by processing sequences of proteins, and filtering sequences based on domain information. It also generates various outputs such as metadata, phylogenetic trees, and annotations.
+This script performs domain analysis by processing sequences of proteins, and filtering these sequences based on domain information. It also generates various outputs such as metadata, phylogenetic trees, and annotations.
 
 The Class DomainAnalysis run two process:
 
@@ -27,6 +22,7 @@ Finally, it generates a database containing the sequence data, phylogenetic tree
 
 Usage
 
+Create the script run.py with the following commands:
 
 ```
 from gene_mining import Parameters, DomainAnalysis
@@ -48,6 +44,8 @@ parameters = Parameters(param_seq_dicio = codes,
 
 DomainAnalysis(parameters).run()
 ```
+Note that the script run.py should be in the same directory as gene_mining.py.
+
 Here's an explanation for each of the parameters:
 
 - `param_seq_dicio`: A dictionary mapping assembly codes to their corresponding species names. It provides information about the relationship between assembly codes and species names.
@@ -74,8 +72,9 @@ Here's an explanation for each of the parameters:
 
 - `param_full_analysis`: A boolean flag indicating whether to perform the full analysis. It determines whether the script will execute the full analysis, including HMM analysis and subsequent steps.
 
-Adjust these parameters based on your specific needs and preferences before running the script.
-## Requirements
+Adjust these parameters based on your specific needs and preferences before running the script run.py.
+
+# Requirements
 To use the gene_mining.py script, you need to have the following programs installed:
 
 - HMMER (hmmscan)
