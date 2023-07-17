@@ -48,19 +48,17 @@ To use the filo.py script, you need to have the following programs installed:
 - HMMER (hmmscan)
 - EMBOSS (pepstats)
 - deeploc2
-- mafft
+- Signalp6
+- DeepTMHMM
+- MAFFT
 - CiAlign
-- iqtree2
+- IQ-TREE
 
 You also need to have Python 3.x installed, along with the following Python modules:
 
-- re
-- os
-- shutil
-- time
-- tqdm
-- pandas
+- biolib
 - biopython
+- pandas
 
 ## Attention
 
