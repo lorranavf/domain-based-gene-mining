@@ -2,15 +2,17 @@
 
 This repository contains two Python scripts: gene_mining.py, and dependencies.py:
 
-#### dependencies.py
+## dependencies.py
 This script checks the dependencies required for running a specific program. It verifies the presence of both Python libraries and external programs in the environment.
+
+### Usage
 To run the script, open a terminal or command prompt and navigate to the directory where the dependencies.py script is located. Then, use the following command:
 
 ```
 python dependencies.py
 ```
 
-#### gene_mining.py
+## gene_mining.py
 This script performs domain analysis by processing sequences of proteins, and filtering these sequences based on domain information. It also generates various outputs such as metadata, phylogenetic trees, and annotations.
 
 The Class DomainAnalysis run two process:
@@ -20,7 +22,7 @@ The Class DomainAnalysis run two process:
 
 Finally, it generates a database containing the sequence data, phylogenetic trees, and annotation files for domains and subcellular localization, which can be used for tree annotation with the web software iTOL.
 
-Usage
+### Usage
 
 Create the script run.py with the following commands:
 
@@ -45,6 +47,8 @@ parameters = Parameters(param_seq_dicio = codes,
 DomainAnalysis(parameters).run()
 ```
 Note that the script run.py should be in the same directory as gene_mining.py.
+
+### Parameters
 
 Here's an explanation for each of the parameters:
 
@@ -84,7 +88,7 @@ To use the gene_mining.py script, you need to have the following programs instal
 - DeepTMHMM (to run locally, you need to install Docker)
 - MAFFT
 - CiAlign
-- IQ-TREE
+- IQ-TREE2
 
 You also need to have Python 3.x installed, along with the following Python modules:
 
@@ -94,6 +98,6 @@ You also need to have Python 3.x installed, along with the following Python modu
 
 ## Attention
 
-To use the filo.py script, make sure to have the necessary programs installed.
+To use the gene_mining.py script, make sure to have the necessary programs installed.
 
 Note that this script was developed for research purposes and may require modifications to adapt to different scenarios.
