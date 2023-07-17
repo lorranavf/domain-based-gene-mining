@@ -26,7 +26,7 @@ Finally, it generates a database containing the sequence data, phylogenetic tree
 
 Create the script run.py with the following commands:
 
-```
+```python
 from gene_mining import Parameters, DomainAnalysis
 
 codes = {'Code_pattern_for_specie_one': ['Abbreviation', 'Specie1']}
