@@ -29,7 +29,7 @@ Create the script run.py with the following commands:
 ```
 from gene_mining import Parameters, DomainAnalysis
 
-codes = {'Code_pattern': ['Abrev', 'Specie']}
+codes = {'Code_pattern_for_specie_one': ['Abbreviation', 'Specie1']}
 
 parameters = Parameters(param_seq_dicio = codes,
                         param_seq_ext= '.faa',
@@ -48,7 +48,34 @@ DomainAnalysis(parameters).run()
 ```
 Note that the script run.py should be in the same directory as gene_mining.py.
 
-### Parameters
+After obtaining the domain analysis for the first time, setting `param_full_analysis=False`. 
+Then you can run the analysis again, this time setting `param_hmm_analysis = False`, and obtain subsequent analyses for as many targets as desired. 
+
+For example:
+
+```python
+codes = {'Code_pattern_for_specie_one': ['Abbreviation', 'Specie1']}
+
+params = [['domain_one', ['Domain1']],
+          ['domain_two', ['Domain2']]
+
+metadata = Parameters(param_seq_dicio=codes,
+                      param_domain=domain,
+                      param_outdir=outdir,
+                      param_full_analysis=False)
+
+DomainAnalysis(metadata).run()
+
+for outdir, domain in params:
+    print(f'Output analysis: {outdir}')
+
+    metadata = Parameters(param_seq_dicio=codes,
+                          param_domain=domain,
+                          param_outdir=outdir,
+                          param_hmm_analysis=False)
+
+    DomainAnalysis(metadata).run()
+```
 
 Here's an explanation for each of the parameters:
 
