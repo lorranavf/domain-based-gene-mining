@@ -24,7 +24,8 @@ Finally, it generates a database containing the sequence data, phylogenetic tree
 
 ### Usage
 
-Create the script run.py with the following commands:
+First, save the protein FASTA files in the 'in.files' directory and the Pfam database in the 'in.pfam' directory. See below for instructions on how to prepare the Pfam database.
+Then, create the script run.py with the following commands:
 
 ```python
 from gene_mining import Parameters, DomainAnalysis
@@ -104,6 +105,24 @@ Here's an explanation for each of the parameters:
 - `param_full_analysis`: A boolean flag indicating whether to perform the full analysis. It determines whether the script will execute the full analysis, including HMM analysis and subsequent steps.
 
 Adjust these parameters based on your specific needs and preferences before running the script run.py.
+
+To prepare the Pfam database, follow these steps:
+
+1. Download the Pfam database from the Pfam website: https://ftp.ebi.ac.uk/pub/databases/Pfam/current_release/
+2. Once downloaded, navigate to the terminal.
+3. Uncompress the Pfam database file by running the following command:
+   ```bash
+   gunzip Pfam-A.hmm.gz
+   ```
+   This will extract the Pfam-A.hmm file.
+4. Prepare the profile database for hmmscan using the following command:
+   ```bash
+   hmmpress Pfam-A.hmm
+   ```
+   This command will create additional files required for efficient searching with hmmscan.
+The Pfam database is now ready to be used for domain analysis. Make sure to provide the correct path to the Pfam-A.hmm file as the value for the `param_pfam_in` parameter in your script.
+
+Make sure to follow these steps carefully to properly prepare the Pfam database for your domain analysis.
 
 # Requirements
 To use the gene_mining.py script, you need to have the following programs installed:
