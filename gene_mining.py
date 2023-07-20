@@ -10,6 +10,8 @@ import warnings
 from Bio import SeqIO
 from dataclasses import dataclass
 from typing import List, Pattern
+from tqdm import trange
+
 
 warnings.filterwarnings("ignore")
 
@@ -86,14 +88,14 @@ class DomainAnalysis:
         files = os.listdir(self.parameters.param_seq_path)
         files = [filename for filename in files if os.path.splitext(filename)[1] == ext]
 
-        for i in range(len(files)):
+        for i in trange(len(files), ncols = 100):
             assembly = regex.search(files[i])[0]
             seq = f'{self.parameters.param_seq_path}/{files[i]}'
             self.get_domains(assembly, seq)
 
     def get_domains(self, assembly, seq):
 
-        print(f'Analyzing sample: {assembly}, {time.strftime("%H:%M %d/%m/%Y", time.localtime(time.time()))}')
+        #print(f'Analyzing sample: {assembly}, {time.strftime("%H:%M %d/%m/%Y", time.localtime(time.time()))}')
         infile = self.parameters.param_pfam_in
         outfile = f'{self.parameters.param_pfam_out}/{assembly}'
         cpu = self.parameters.param_cpu
