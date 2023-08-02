@@ -131,14 +131,14 @@ To use the gene_mining.py script, you need to have the following programs instal
 - EMBOSS (pepstats)
 - deeploc2
 - Signalp6
-- DeepTMHMM (to run locally, you need to install Docker)
+- DeepTMHMM (to run locally, you need to install pybiolib, and Docker)
 - MAFFT
 - CiAlign
 - IQ-TREE2
 
 You also need to have Python 3.x installed, along with the following Python modules:
 
-- biolib
+- pybiolib
 - biopython
 - pandas
 
