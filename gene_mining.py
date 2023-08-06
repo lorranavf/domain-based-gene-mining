@@ -186,7 +186,7 @@ class DomainAnalysis:
     def get_deep_tmhmm(self, dirs, db_path):
         print('Calculating transmembrane domains')
         deeptmhmm = biolib.load('DTU/DeepTMHMM')
-        deeptmhmm_job = deeptmhmm.cli(args=f'--fasta {db_path}')
+        deeptmhmm_job = deeptmhmm.cli(args=f'--fasta {db_path}, machine='local')
         deeptmhmm_job.save_files(dirs[13])
 
     def get_pepstats(self, dirs, db_path):
