@@ -216,8 +216,7 @@ class DomainAnalysis:
     def get_metadados(self, dirs, df_pepstats, df_deeploc, df_pfam_selected_united):
         print('Collecting metadata')
         df_merged = pd.merge(df_pepstats, df_deeploc, on='Protein_ID')
-        # ([^_]+)
-        inregex = re.compile("^...([A-Za-z0-9._]+)")
+        inregex = re.compile("_(.*)")
         df_merged['Query'] = df_merged['Protein_ID'].apply(lambda x: inregex.search(x).group(1))
         df_merged = df_merged[['Query', 'ProteinLength', 'IsoelectricPoint', 'MolecularWeight', 'Localizations']]
         df_merged_stats = pd.merge(df_merged, df_pfam_selected_united, on='Query')
