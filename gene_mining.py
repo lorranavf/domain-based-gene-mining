@@ -1,4 +1,5 @@
 import biolib
+import contextlib
 import os
 import pandas as pd
 import random
@@ -92,6 +93,7 @@ class DomainAnalysis:
             assembly = regex.search(files[i])[0]
             seq = f'{self.parameters.param_seq_path}/{files[i]}'
             self.get_domains(assembly, seq)
+            self.get_resolved_hits(assembly)
 
     def get_domains(self, assembly, seq):
 
@@ -187,8 +189,13 @@ class DomainAnalysis:
     def get_deep_tmhmm(self, dirs, db_path):
         print('Calculating transmembrane domains')
         deeptmhmm = biolib.load('DTU/DeepTMHMM')
-        deeptmhmm_job = deeptmhmm.cli(args=f'--fasta {db_path}', machine='local')
-        deeptmhmm_job.save_files(dirs[13])
+
+        deeptmhmm_log = f'{dirs[11]}/deeptmhmm.log'
+
+        with open(deeptmhmm_log, 'w') as log:
+            with contextlib.redirect_stdout(log):
+                deeptmhmm_job = deeptmhmm.cli(args=f'--fasta {db_path}', machine='local')
+                deeptmhmm_job.save_files(dirs[13])
 
     def get_pepstats(self, dirs, db_path):
         print('Calculating protein stats')
@@ -333,21 +340,6 @@ class DomainAnalysis:
         # Fasta
         database = SeqIO.to_dict(SeqIO.parse(db_path, 'fasta'))
 
-        # Signalp6
-        table_signalp = pd.read_table(f'{dirs[12]}/output.gff3', header=None, skiprows=1, engine='python')
-        table_signalp = table_signalp[[0, 2, 3, 4]]
-        table_signalp.columns = ['Query', 'Domain', 'From', 'To']
-        table_signalp['Symbol'] = 'RE'
-        table_signalp['Color'] = '#ff0000'
-
-        # DeepTMHMM
-        keywords = ['TMhelix', 'Beta sheet']
-        lines = open(f'{dirs[13]}/TMRs.gff3', "r").readlines()
-        lines_filtered = [line.strip().split('\t') for line in lines if any(word in line for word in keywords)]
-        table_deeptmhmm = pd.DataFrame(lines_filtered, columns=['Query', 'Domain', 'From', 'To'])
-        table_deeptmhmm['Symbol'] = 'RE'
-        table_deeptmhmm['Color'] = '#0000ff'
-
         # Pfam
         dicio_itol = {
             'RE': ['#00ff00', '#ffff00', '#00ffff', '#ff00ff', '#000000', '#ffffff', '#808080'],
@@ -376,12 +368,59 @@ class DomainAnalysis:
         df_selected_itol['Qlen'] = df_selected_itol['Query'].apply(lambda x: len(database[x].seq) if x in database else None)
         df_selected_itol = df_selected_itol[['Query', 'Qlen', 'From', 'To', 'Domain', 'Symbol', 'Color']]
 
-        # Merge Signalp6 + DeepTMHMM
-        merged_df = pd.concat([table_signalp, table_deeptmhmm])
-        merged_df['Qlen'] = merged_df['Query'].apply(lambda x: len(database[x].seq) if x in database else None)
+        table_signalp = pd.DataFrame(columns=['Query', 'Domain', 'From', 'To', 'Symbol', 'Color'])
+        table_deeptmhmm = pd.DataFrame(columns=['Query', 'Domain', 'From', 'To', 'Symbol', 'Color'])
+        merged_df = pd.DataFrame(columns=['Query', 'Domain', 'From', 'To', 'Symbol', 'Color'])
 
-        # Merge Pfam + Signalp + DeepTMHMM
-        df_domains_architecture = pd.concat([df_selected_itol, merged_df])
+
+        try:
+            table_signalp_temp = pd.read_table(f'{dirs[12]}/output.gff3', header=None, skiprows=1, engine='python')
+
+            if not table_signalp_temp.empty:
+                table_signalp = table_signalp_temp[[0, 2, 3, 4]]
+                table_signalp.columns = ['Query', 'Domain', 'From', 'To']
+                table_signalp['Symbol'] = 'RE'
+                table_signalp['Color'] = '#ff0000'
+
+        except FileNotFoundError:
+            print("Arquivo output.gff3 não encontrado.")
+        except pd.errors.EmptyDataError:
+            print("O arquivo output.gff3 está vazio ou não contém dados.")
+        except Exception as e:
+            print(f"Erro ao processar output.gff3: {e}")
+
+        # DeepTMHMM
+        try:
+            keywords = ['TMhelix', 'Beta sheet']
+            lines = open(f'{dirs[13]}/TMRs.gff3', "r").readlines()
+            lines_filtered = [line.strip().split('\t') for line in lines if any(word in line for word in keywords)]
+            table_deeptmhmm_temp = pd.DataFrame(lines_filtered, columns=['Query', 'Domain', 'From', 'To'])
+
+            if not table_deeptmhmm_temp.empty:
+                table_deeptmhmm = table_deeptmhmm_temp.copy()
+                table_deeptmhmm['Symbol'] = 'RE'
+                table_deeptmhmm['Color'] = '#0000ff'
+
+        except FileNotFoundError:
+            print("Arquivo TMRs.gff3 não encontrado.")
+        except pd.errors.EmptyDataError:
+            print("O arquivo TMRs.gff3 está vazio ou não contém dados.")
+        except Exception as e:
+            print(f"Erro ao processar TMRs.gff3: {e}")
+
+        # Merge Signalp6 + DeepTMHMM
+        if not table_signalp.empty:
+            merged_df = pd.concat([table_signalp])
+
+        if not table_deeptmhmm.empty:
+            merged_df = pd.concat([table_deeptmhmm])
+
+        if not merged_df.empty:
+            merged_df['Qlen'] = merged_df['Query'].apply(lambda x: len(database[x].seq) if x in database else None)
+            merged_df = merged_df[['Query', 'Qlen', 'From', 'To', 'Domain', 'Symbol', 'Color']]
+            df_domains_architecture = pd.concat([df_selected_itol, merged_df])
+        else:
+            df_domains_architecture = df_selected_itol.copy()
 
         lista = [[df_selected_itol, 'Pfam', 'Pfam Architecture', f'{dirs[4]}/itol_pfam_domains.txt'],
                  [df_domains_architecture, 'Domains', 'Domains Arquitecture', f'{dirs[4]}/itol_domains.txt'],

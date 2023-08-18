@@ -134,4 +134,6 @@ dmypy.json
 # Exemples directories
 exemple/
 out.pfam/
-out.mate/
+out.mate.v1/
+out.peptidase.v1/
+run.py
