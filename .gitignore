@@ -133,3 +133,5 @@ dmypy.json
 
 # Exemples directories
 exemple/
+out.pfam/
+out.mate/
