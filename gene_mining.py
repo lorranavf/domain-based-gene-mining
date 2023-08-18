@@ -101,13 +101,18 @@ class DomainAnalysis:
         cpu = self.parameters.param_cpu
         os.system(f'hmmscan --cpu {cpu} -E 1e-5 -o {outfile}.out --domtblout {outfile}.pfam {infile} {seq}')
 
+    def get_resolved_hits(self, assembly):
+        file = f'{self.parameters.param_pfam_out}/{assembly}'
+        comm = f'cath-resolve-hits {file}.pfam --input-format hmmer_domtblout --hits-text-to-file {file}.resolved  --input-hits-are-grouped --quiet > /dev/null 2>&1'
+        os.system(comm)
+
     def filter_sequences_per_domain(self, dirs):
         regex = re.compile(self.parameters.param_seq_regex)
         ext = self.parameters.param_seq_ext
         files = os.listdir(self.parameters.param_seq_path)
         files = [filename for filename in files if os.path.splitext(filename)[1] == ext]
-        dfs_pfam = []
-        dfs_itol = []
+        tables_pfam = []
+        tables_itol = []
         dbs_faa = []
 
         for i in range(len(files)):
@@ -116,16 +121,14 @@ class DomainAnalysis:
             dicio = self.parameters.param_seq_dicio
             assembly = regex.search(files[i])[0]
             seq = f'{self.parameters.param_seq_path}/{files[i]}'
-            name_ab = next((v[0] for k,v in self.parameters.param_seq_dicio.items() if k == assembly), None)
+            name_ab = next((v[0] for k, v in self.parameters.param_seq_dicio.items() if k == assembly), None)
 
             # pfamm hmmscan output
-            table = f'{self.parameters.param_pfam_out}/{assembly}.pfam'
-            table = pd.read_table(table, header=None, skiprows=3, skipfooter=10, engine='python')
+            path = f'{self.parameters.param_pfam_out}/{assembly}.resolved'
+            columns = ['Domain', 'Query', 'Score', 'Boundaries', 'Resolved', 'Cond-Evalue', 'Indp-Evalue']
+            table = pd.read_table(path, sep=' ', header=None, skiprows=2, names=columns, engine='python')
 
-            table_profile = pd.DataFrame({'Query': [i.split()[3] for i in table[0]],
-                                          'Domain': [i.split()[0] for i in table[0]]})
-
-            table_profile = table_profile.groupby('Query')['Domain'].apply(list).reset_index(name='Domains')
+            table_profile = table.groupby('Query')['Domain'].apply(list).reset_index(name='Domains')
             table_profile['Assembly'] = assembly
             table_profile['Specie'] = next((v[1] for k, v in dicio.items() if k == assembly), None)
             table_profile = table_profile[['Specie', 'Assembly', 'Query', 'Domains']]
@@ -133,22 +136,20 @@ class DomainAnalysis:
             print(f'Selecting domain in: {assembly}, {time.strftime("%H:%M %d/%m/%Y", time.localtime(time.time()))}')
 
             if domain_group:
-                df_pfam_selected = table_profile[table_profile['Domains'] == str(domain)]
+                table_pfam = table_profile[table_profile['Domains'] == str(domain)]
             else:
-                df_pfam_selected = table_profile[table_profile['Domains'].apply(lambda x: any(d in x for d in domain))]
+                table_pfam = table_profile[table_profile['Domains'].apply(lambda x: any(d in x for d in domain))]
 
-            dfs_pfam.append(df_pfam_selected)
-            seq_to_select = list(df_pfam_selected['Query'])
+            tables_pfam.append(table_pfam)
 
-            # iTOL domain anotation
-            df_itol = pd.DataFrame({'query': [i.split()[3] for i in table[0]],
-                                    'evalue': [i.split()[6] for i in table[0]],
-                                    'from': [i.split()[17] for i in table[0]],
-                                    'to': [i.split()[18] for i in table[0]],
-                                    'domain': [i.split()[0] for i in table[0]]})
-            df_itol = df_itol[df_itol['query'].isin(seq_to_select)]
-            df_itol['query'] = df_itol['query'].apply(lambda x: f'{name_ab}_{x}')
-            dfs_itol.append(df_itol)
+            seq_to_select = list(table_pfam['Query'])
+
+            table['From'] = table['Resolved'].str.split('-').str[0]
+            table['To'] = table['Resolved'].str.split('-').str[1]
+            table_itol = table[['Query', 'Domain', 'From', 'To']]
+            table_itol = table_itol[table_itol['Query'].isin(seq_to_select)]
+            table_itol['Query'] = table_itol['Query'].apply(lambda x: f'{name_ab}_{x}')
+            tables_itol.append(table_itol)
 
             # faa database
             database = [record for record in SeqIO.parse(seq, 'fasta')]
@@ -159,11 +160,11 @@ class DomainAnalysis:
                 seq.description = ''
             dbs_faa.append(database_selected)
 
-        df_pfam_selected_united = pd.concat(dfs_pfam)
-        df_pfam_selected_united.to_csv(f'{dirs[2]}/pfam.csv', index=False)
+        table_selected_united = pd.concat(tables_pfam)
+        table_selected_united.to_csv(f'{dirs[2]}/pfam_profile.csv', index=False)
 
-        df_selected_itol = pd.concat(dfs_itol)
-        df_selected_itol.to_csv(f'{dirs[2]}/pfam.itol', index=False)
+        tables_itol_united = pd.concat(tables_itol)
+        tables_itol_united.to_csv(f'{dirs[2]}/pfam_coordinates.itol', index=False)
 
         database_selected_united = [record for database in dbs_faa for record in database]
         SeqIO.write(database_selected_united, f'{dirs[3]}/database_selected_united.fasta', 'fasta')
@@ -174,9 +175,9 @@ class DomainAnalysis:
         df_deeploc = self.get_deeploc(dirs, db_path)
         self.get_signalp(dirs, db_path)
         self.get_deep_tmhmm(dirs, db_path)
-        self.get_metadados(dirs, df_pepstats, df_deeploc, df_pfam_selected_united)
+        self.get_metadados(dirs, df_pepstats, df_deeploc, table_selected_united)
         self.get_filogeny(dirs, db_path)
-        self.get_domain_anot(dirs, db_path)
+        self.get_anotations(dirs, db_path)
         self.get_local_anot(dirs, df_deeploc)
 
     def get_signalp(self, dirs, db_path):
@@ -293,29 +294,61 @@ class DomainAnalysis:
         log.write(anot)
         log.close()
 
-    def get_domain_anot(self, dirs, db_path):
+    def get_file_anot(self, df, outfile, label, title, list_dom, list_sim, list_col):
+        anot = textwrap.dedent(f"""\
+                DATASET_DOMAINS
+                SEPARATOR COMMA
+                DATASET_LABEL,{label}
+                COLOR,#0000ff
+                BORDER_WIDTH,1
+                GRADIENT_FILL,1
+                SHOW_DOMAIN_LABELS,1
+                LEGEND_TITLE,{title}
+                LEGEND_LABELS,{','.join(list_dom)}
+                LEGEND_SHAPES,{','.join(list_sim)}
+                LEGEND_COLORS,{','.join(list_col)}
+                DATA
+                """)
+
+        anot_data = {}
+
+        for _, row in df.iterrows():
+            query_anot = f"{row['Query']},{row['Qlen']}"
+            domain_anot = f"{row['Symbol']}|{row['From']}|{row['To']}|{row['Color']}|{row['Domain']}"
+
+            if query_anot in anot_data:
+                anot_data[query_anot].append(domain_anot)
+            else:
+                anot_data[query_anot] = [domain_anot]
+
+        anot += '\n'.join([f'{key},{",".join(values)}' for key, values in anot_data.items()])
+
+        log = open(outfile, 'w')
+        log.write(anot)
+        log.close()
+
+    def get_anotations(self, dirs, db_path):
         print('Generating domains anotations')
 
+        # Fasta
         database = SeqIO.to_dict(SeqIO.parse(db_path, 'fasta'))
-        df_selected_itol = pd.read_csv(f'{dirs[2]}/pfam.itol')
 
         # Signalp6
         table_signalp = pd.read_table(f'{dirs[12]}/output.gff3', header=None, skiprows=1, engine='python')
         table_signalp = table_signalp[[0, 2, 3, 4]]
-        table_signalp.columns = ['query', 'domain', 'from', 'to']
-        table_signalp['symbol'] = 'RE'
-        table_signalp['color'] = '#ff0000'
+        table_signalp.columns = ['Query', 'Domain', 'From', 'To']
+        table_signalp['Symbol'] = 'RE'
+        table_signalp['Color'] = '#ff0000'
 
-        # Deep TMHMM
+        # DeepTMHMM
         keywords = ['TMhelix', 'Beta sheet']
         lines = open(f'{dirs[13]}/TMRs.gff3', "r").readlines()
         lines_filtered = [line.strip().split('\t') for line in lines if any(word in line for word in keywords)]
-        table_deeptmhmm = pd.DataFrame(lines_filtered, columns=['query', 'domain', 'from', 'to'])
-        table_deeptmhmm['symbol'] = 'RE'
-        table_deeptmhmm['color'] = '#0000ff'
+        table_deeptmhmm = pd.DataFrame(lines_filtered, columns=['Query', 'Domain', 'From', 'To'])
+        table_deeptmhmm['Symbol'] = 'RE'
+        table_deeptmhmm['Color'] = '#0000ff'
 
-        merged_df = pd.concat([table_signalp, table_deeptmhmm])
-
+        # Pfam
         dicio_itol = {
             'RE': ['#00ff00', '#ffff00', '#00ffff', '#ff00ff', '#000000', '#ffffff', '#808080'],
             'HH': ['#ff0000', '#0000ff', '#00ff00', '#ffff00', '#00ffff', '#ff00ff', '#000000', '#808080'],
@@ -331,55 +364,44 @@ class DomainAnalysis:
             'OC': ['#ff0000', '#0000ff', '#00ff00', '#ffff00', '#00ffff', '#ff00ff', '#000000', '#808080'],
             'GP': ['#ff0000', '#0000ff', '#00ff00', '#ffff00', '#00ffff', '#ff00ff', '#000000', '#808080']}
 
+        df_selected_itol = pd.read_csv(f'{dirs[2]}/pfam_coordinates.itol')
         list_leg = [[k, value] for k, values in dicio_itol.items() for value in values]
-        list_dom = df_selected_itol['domain'].unique().tolist()
+        list_dom = df_selected_itol['Domain'].unique().tolist()
         list_num = random.sample(range(len(list_leg)), len(list_dom))
         list_sim = [list_leg[i][0] for i in list_num]
         list_col = [list_leg[i][1] for i in list_num]
         dici_dom = {dom: [sim, col] for dom, sim, col in zip(list_dom, list_sim, list_col)}
+        df_selected_itol['Symbol'] = df_selected_itol['Domain'].apply(lambda x: next(v[0] for k, v in dici_dom.items() if x == k))
+        df_selected_itol['Color'] = df_selected_itol['Domain'].apply(lambda x: next(v[1] for k, v in dici_dom.items() if x == k))
+        df_selected_itol['Qlen'] = df_selected_itol['Query'].apply(lambda x: len(database[x].seq) if x in database else None)
+        df_selected_itol = df_selected_itol[['Query', 'Qlen', 'From', 'To', 'Domain', 'Symbol', 'Color']]
 
-        df_selected_itol['symbol'] = df_selected_itol['domain'].apply(
-            lambda x: next(v[0] for k, v in dici_dom.items() if x == k))
-        df_selected_itol['color'] = df_selected_itol['domain'].apply(
-            lambda x: next(v[1] for k, v in dici_dom.items() if x == k))
+        # Merge Signalp6 + DeepTMHMM
+        merged_df = pd.concat([table_signalp, table_deeptmhmm])
+        merged_df['Qlen'] = merged_df['Query'].apply(lambda x: len(database[x].seq) if x in database else None)
 
-        # dfs (itol, signalp, deeptmhmm)
-        df_selected_itol = df_selected_itol[['query', 'from', 'to', 'domain', 'symbol', 'color']]
+        # Merge Pfam + Signalp + DeepTMHMM
         df_domains_architecture = pd.concat([df_selected_itol, merged_df])
-        df_domains_architecture['qlen'] = df_domains_architecture['query'].apply(
-            lambda x: len(database[x].seq) if x in database else None)
 
-        list_dom.extend(['Signal Peptide', 'Transmembrane Domains'])
-        list_sim.extend(['RE', 'RE'])
-        list_col.extend(['#ff0000', '#0000ff'])
+        lista = [[df_selected_itol, 'Pfam', 'Pfam Architecture', f'{dirs[4]}/itol_pfam_domains.txt'],
+                 [df_domains_architecture, 'Domains', 'Domains Arquitecture', f'{dirs[4]}/itol_domains.txt'],
+                 [merged_df, 'SP & TM', 'Signal Peptides & Transmembrane Arquitecture', f'{dirs[4]}/itol_tm_domains.txt']]
 
-        anot_data = {}
-        for _, row in df_domains_architecture.iterrows():
-            query_anot = f"{row['query']},{row['qlen']}"
-            domain_anot = f"{row['symbol']}|{row['from']}|{row['to']}|{row['color']}|{row['domain']}"
 
-            if query_anot in anot_data:
-                anot_data[query_anot].append(domain_anot)
-            else:
-                anot_data[query_anot] = [domain_anot]
+        for df, label, title, outfile in lista:
 
-        anot = textwrap.dedent(f"""\
-        DATASET_DOMAINS
-        SEPARATOR COMMA
-        DATASET_LABEL,Domains
-        COLOR,#0000ff
-        BORDER_WIDTH,1
-        GRADIENT_FILL,1
-        SHOW_DOMAIN_LABELS,1
-        LEGEND_TITLE,Domain architecture
-        LEGEND_LABELS,{','.join(list_dom)}
-        LEGEND_SHAPES,{','.join(list_sim)}
-        LEGEND_COLORS,{','.join(list_col)}
-        DATA
-        """)
+            if label == 'Pfam':
+                pass
 
-        anot += '\n'.join([f'{key},{",".join(values)}' for key, values in anot_data.items()])
+            if label == 'Domains':
+                list_dom.extend(['Signal Peptide', 'Transmembrane Domains'])
+                list_sim.extend(['RE', 'RE'])
+                list_col.extend(['#ff0000', '#0000ff'])
 
-        log = open(f'{dirs[4]}/itol_domains.txt', 'w')
-        log.write(anot)
-        log.close()
+            if label == 'SP & TM':
+                list_dom = ['Signal Peptide', 'Transmembrane Domains']
+                list_sim = ['RE', 'RE']
+                list_col = ['#ff0000', '#0000ff']
+
+            self.get_file_anot(df, outfile, label, title, list_dom, list_sim, list_col)
+
