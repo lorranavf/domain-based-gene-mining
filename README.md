@@ -17,10 +17,10 @@ This script performs domain analysis by processing sequences of proteins, and fi
 
 The Class DomainAnalysis run two process:
 
-- First, performs domain analysis by obtaining domains present in each sequence using the hmmscan program.
+- First, performs domain analysis by obtaining domains present in each sequence using the hmmscan program and cath-resolve hits.
 - It then filters the specified domains and analyzes the filtered sequences using various programs such as pepstats, deeploc2, signalp6, DeepTMHMM, MAFFT, CIAlign, and iqtree2.
 
-Finally, it generates a database containing the sequence data, phylogenetic trees, and annotation files for domains and subcellular localization, which can be used for tree annotation with the web software iTOL.
+Finally, it generates a database containing the sequence data, phylogenetic trees, and annotation files for domains (functional, signal  peptides, and transmembrane) and subcellular localization, which can be used for tree annotation with the web software iTOL.
 
 ### Usage
 
@@ -30,7 +30,7 @@ Then, create the script run.py with the following commands:
 ```python
 from gene_mining import Parameters, DomainAnalysis
 
-codes = {'Code_pattern_for_specie_one': ['Abbreviation', 'Specie1']}
+codes = {'Code_pattern_for_specie_one': ['Specie Abbreviation', 'Specie']}
 
 parameters = Parameters(param_seq_dicio = codes,
                         param_seq_ext= '.faa',
@@ -55,19 +55,18 @@ Then you can run the analysis again, this time setting `param_hmm_analysis = Fal
 For example:
 
 ```python
-codes = {'Code_pattern_for_specie_one': ['Abbreviation', 'Specie1']}
-
-params = [['domain_one', ['Domain1']],
-          ['domain_two', ['Domain2']]
+codes = {'Code_pattern_for_specie_one': ['Specie Abbreviation', 'Specie1']}
 
 metadata = Parameters(param_seq_dicio=codes,
-                      param_domain=domain,
-                      param_outdir=outdir,
                       param_full_analysis=False)
 
 DomainAnalysis(metadata).run()
 
+params = [['outdir_domain_one', ['Domain1']],
+          ['outdir_domain_two', ['Domain2']]
+
 for outdir, domain in params:
+   
     print(f'Output analysis: {outdir}')
 
     metadata = Parameters(param_seq_dicio=codes,
@@ -108,18 +107,22 @@ Adjust these parameters based on your specific needs and preferences before runn
 
 To prepare the Pfam database, follow these steps:
 
-1. Download the Pfam database from the Pfam website: https://ftp.ebi.ac.uk/pub/databases/Pfam/current_release/
+1. Download the [Pfam database](https://ftp.ebi.ac.uk/pub/databases/Pfam/current_release/) from the Pfam website.
 2. Once downloaded, navigate to the terminal.
 3. Uncompress the Pfam database file by running the following command:
+
    ```bash
    gunzip Pfam-A.hmm.gz
    ```
    This will extract the Pfam-A.hmm file.
+
 4. Prepare the profile database for hmmscan using the following command:
+
    ```bash
    hmmpress Pfam-A.hmm
    ```
    This command will create additional files required for efficient searching with hmmscan.
+
 The Pfam database is now ready to be used for domain analysis. Make sure to provide the correct path to the Pfam-A.hmm file as the value for the `param_pfam_in` parameter in your script.
 
 Make sure to follow these steps carefully to properly prepare the Pfam database for your domain analysis.
@@ -127,23 +130,25 @@ Make sure to follow these steps carefully to properly prepare the Pfam database 
 # Requirements
 To use the gene_mining.py script, you need to have the following programs installed:
 
-- HMMER (hmmscan)
-- EMBOSS (pepstats)
-- deeploc2
-- Signalp6
-- DeepTMHMM (to run locally, you need to install pybiolib, and Docker)
-- MAFFT
-- CiAlign
-- IQ-TREE2
+- [HMMER (hmmscan)](http://hmmer.org/) 
+- [EMBOSS (pepstats)](http://emboss.open-bio.org/rel/rel6/apps/pepstats.html)
+- [deeploc2](https://services.healthtech.dtu.dk/services/DeepLoc-2.0/)
+- [Signalp6](https://dtu.biolib.com/SignalP-6)
+- [DeepTMHMM(to run locally, you need to install pybiolib, and Docker)](https://dtu.biolib.com/DeepTMHMM)
+- [Docker](https://docs.docker.com/engine/install/ubuntu/#install-using-the-convenience-script)
+- [MAFFT](https://mafft.cbrc.jp/alignment/software/)
+- [CiAlign](https://pypi.org/project/cialign/)
+- [IQ-TREE2](http://www.iqtree.org/)
 
 You also need to have Python 3.x installed, along with the following Python modules:
 
-- pybiolib
-- biopython
-- pandas
+- [pybiolib](https://pypi.org/project/pybiolib/)
+- [biopython](https://biopython.org/)
+- [pandas](https://pandas.pydata.org/)
 
 ## Attention
 
 To use the gene_mining.py script, make sure to have the necessary programs installed.
 
 Note that this script was developed for research purposes and may require modifications to adapt to different scenarios.
+
