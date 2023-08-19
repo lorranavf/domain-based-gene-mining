@@ -88,7 +88,9 @@ class DomainAnalysis:
         ext = self.parameters.param_seq_ext
         files = os.listdir(self.parameters.param_seq_path)
         files = [filename for filename in files if os.path.splitext(filename)[1] == ext]
-
+        
+        print(f'Obtaining domains through hmmscan')
+        
         for i in trange(len(files), ncols = 100):
             assembly = regex.search(files[i])[0]
             seq = f'{self.parameters.param_seq_path}/{files[i]}'
@@ -97,7 +99,6 @@ class DomainAnalysis:
 
     def get_domains(self, assembly, seq):
 
-        #print(f'Analyzing sample: {assembly}, {time.strftime("%H:%M %d/%m/%Y", time.localtime(time.time()))}')
         infile = self.parameters.param_pfam_in
         outfile = f'{self.parameters.param_pfam_out}/{assembly}'
         cpu = self.parameters.param_cpu
@@ -127,7 +128,7 @@ class DomainAnalysis:
 
             # pfamm hmmscan output
             path = f'{self.parameters.param_pfam_out}/{assembly}.resolved'
-            columns = ['Domain', 'Query', 'Score', 'Boundaries', 'Resolved', 'Cond-Evalue', 'Indp-Evalue']
+            columns = ['Query', 'Domain', 'Score', 'Boundaries', 'Resolved', 'Cond-Evalue', 'Indp-Evalue']
             table = pd.read_table(path, sep=' ', header=None, skiprows=2, names=columns, engine='python')
 
             table_profile = table.groupby('Query')['Domain'].apply(list).reset_index(name='Domains')
