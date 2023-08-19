@@ -131,6 +131,7 @@ Make sure to follow these steps carefully to properly prepare the Pfam database 
 To use the gene_mining.py script, you need to have the following programs installed:
 
 - [HMMER (hmmscan)](http://hmmer.org/) 
+- [CATH Tools (cath-resolve-hits)](https://cath-tools.readthedocs.io/en/latest/tools/cath-resolve-hits/)
 - [EMBOSS (pepstats)](http://emboss.open-bio.org/rel/rel6/apps/pepstats.html)
 - [deeploc2](https://services.healthtech.dtu.dk/services/DeepLoc-2.0/)
 - [Signalp6](https://dtu.biolib.com/SignalP-6)
