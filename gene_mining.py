@@ -384,11 +384,11 @@ class DomainAnalysis:
                 table_signalp['Color'] = '#ff0000'
 
         except FileNotFoundError:
-            print("Arquivo output.gff3 não encontrado.")
+            pass
         except pd.errors.EmptyDataError:
-            print("O arquivo output.gff3 está vazio ou não contém dados.")
+            pass
         except Exception as e:
-            print(f"Erro ao processar output.gff3: {e}")
+            pass
 
         # DeepTMHMM
         try:
@@ -403,11 +403,11 @@ class DomainAnalysis:
                 table_deeptmhmm['Color'] = '#0000ff'
 
         except FileNotFoundError:
-            print("Arquivo TMRs.gff3 não encontrado.")
+            pass
         except pd.errors.EmptyDataError:
-            print("O arquivo TMRs.gff3 está vazio ou não contém dados.")
+            pass
         except Exception as e:
-            print(f"Erro ao processar TMRs.gff3: {e}")
+            pass
 
         # Merge Signalp6 + DeepTMHMM
         if not table_signalp.empty:
