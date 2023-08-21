@@ -106,7 +106,7 @@ class DomainAnalysis:
 
     def get_resolved_hits(self, assembly):
         file = f'{self.parameters.param_pfam_out}/{assembly}'
-        comm = f'cath-resolve-hits {file}.out --input-format hmmer_out --hits-text-to-file {file}.resolved  --input-hits-are-grouped --quiet > /dev/null 2>&1'
+        comm = f'cath-resolve-hits {file}.out --input-format hmmscan_out --hits-text-to-file {file}.resolved  --input-hits-are-grouped --quiet > /dev/null 2>&1'
         os.system(comm)
 
     def filter_sequences_per_domain(self, dirs):
