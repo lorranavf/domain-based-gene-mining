@@ -12,8 +12,6 @@ from Bio import SeqIO
 from dataclasses import dataclass
 from typing import List, Pattern
 from tqdm import trange
-
-
 warnings.filterwarnings("ignore")
 
 
@@ -21,19 +19,22 @@ warnings.filterwarnings("ignore")
 class Parameters:
     """
     """
-    param_seq_dicio: dict
     param_seq_ext: str = '.faa'
     param_seq_regex: Pattern[str] = '^\w*.\d'
-    param_seq_path: str = 'in.files'
-    param_pfam_in: str = 'in.pfam//Pfam-A.hmm'
+    param_pfam_in: str = 'in.pfam/Pfam-A.hmm'
+    param_blastdb: str = 'in.files.blastp.db/blastdb.faa'
+    param_blast_reference: str = 'in.files.blastp.reference/reference.faa'
+    param_seq_path: str = 'in.files.db'
     param_pfam_out: str = 'out.pfam'
-    param_domain: List[str] = None
-    param_domain_group: bool = False
+    param_blast_out: str = 'out.blastp'
     param_outdir: str = None
-    param_cpu: int = 4
+    param_domain: List[str] = None
+    param_seq_dicio: dict = None
+    param_domain_group: bool = False
     param_hmm_analysis: bool = True
     param_full_analysis: bool = True
-
+    param_blast_analysis: bool = False
+    param_cpu: int = 4
 
 class DomainAnalysis:
     """
@@ -44,6 +45,11 @@ class DomainAnalysis:
 
     def run(self):
 
+        if self.parameters.param_blast_analysis:
+            self.parameters.param_seq_dicio = {'out_blastp.6': ['', 'Multiple species']}
+            self.create_output_directory(analysis='blast_analysis')
+            self.get_similar_genes()
+
         if self.parameters.param_hmm_analysis:
             self.create_output_directory(analysis='hmm_analysis')
             self.process_sequences()
@@ -52,7 +58,18 @@ class DomainAnalysis:
             dirs = self.create_output_directory(analysis='full_analysis')
             self.filter_sequences_per_domain(dirs)
 
+
     def create_output_directory(self, analysis):
+
+        if analysis == 'blast_analysis':
+
+            dirs = [self.parameters.param_blast_out,
+                    self.parameters.param_seq_path]
+
+            for directory in dirs:
+                if os.path.exists(directory):
+                    shutil.rmtree(directory)
+                os.mkdir(directory)
 
         if analysis == 'hmm_analysis':
             if os.path.exists(self.parameters.param_pfam_out):
@@ -83,13 +100,48 @@ class DomainAnalysis:
 
             return dirs
 
+    def get_similar_genes(self):
+
+        print(f'Obtaining proteins similar to the reference, {time.strftime("%H:%M %d/%m/%Y", time.localtime(time.time()))}')
+
+        blastdb = self.parameters.param_blastdb
+        reference = self.parameters.param_blast_reference
+        outfmt6 = f'{self.parameters.param_blast_out}/blastp.out'
+        outfasta = f'{self.parameters.param_seq_path}/out_blastp.6.faa'
+
+        comm_make_blastdb = f'makeblastdb -in {blastdb} -dbtype prot -parse_seqids > /dev/null 2>&1'
+        os.system(comm_make_blastdb)
+
+        comm_blastp = f'blastp -query {reference} -db {blastdb} -out {outfmt6} -evalue 1e-5 -outfmt 6'
+        os.system(comm_blastp)
+
+        table = pd.read_table(outfmt6, header=None)
+        target_list = table[1].unique().tolist()
+
+        database = [record for record in SeqIO.parse(blastdb, 'fasta')]
+        database_selected = [record for record in database if record.id in target_list]
+
+        database_reference = [record for record in SeqIO.parse(reference, 'fasta')]
+
+        databases = [database_reference, database_selected]
+
+        database_selected_united = [record for database in databases for record in database]
+
+        for seq in database_selected_united:
+            seq.name = ''
+            seq.description = ''
+
+        SeqIO.write(database_selected_united, outfasta, 'fasta')
+
+
+
     def process_sequences(self):
         regex = re.compile(self.parameters.param_seq_regex)
         ext = self.parameters.param_seq_ext
         files = os.listdir(self.parameters.param_seq_path)
         files = [filename for filename in files if os.path.splitext(filename)[1] == ext]
         
-        print(f'Obtaining domains through hmmscan')
+        print(f'Obtaining domains through hmmscan, {time.strftime("%H:%M %d/%m/%Y", time.localtime(time.time()))}')
         
         for i in trange(len(files), ncols = 100):
             assembly = regex.search(files[i])[0]
@@ -110,6 +162,9 @@ class DomainAnalysis:
         os.system(comm)
 
     def filter_sequences_per_domain(self, dirs):
+
+        print(f'Choosing sequences containing the target domain, {time.strftime("%H:%M %d/%m/%Y", time.localtime(time.time()))}')
+
         regex = re.compile(self.parameters.param_seq_regex)
         ext = self.parameters.param_seq_ext
         files = os.listdir(self.parameters.param_seq_path)
@@ -136,10 +191,9 @@ class DomainAnalysis:
             table_profile['Specie'] = next((v[1] for k, v in dicio.items() if k == assembly), None)
             table_profile = table_profile[['Specie', 'Assembly', 'Query', 'Domains']]
 
-            print(f'Selecting domain in: {assembly}, {time.strftime("%H:%M %d/%m/%Y", time.localtime(time.time()))}')
-
             if domain_group:
-                table_pfam = table_profile[table_profile['Domains'] == str(domain)]
+                table_pfam = table_profile[table_profile['Domains'].apply(lambda x: x == domain)]
+
             else:
                 table_pfam = table_profile[table_profile['Domains'].apply(lambda x: any(d in x for d in domain))]
 
@@ -180,17 +234,16 @@ class DomainAnalysis:
         self.get_deep_tmhmm(dirs, db_path)
         self.get_metadados(dirs, df_pepstats, df_deeploc, table_selected_united)
         self.get_filogeny(dirs, db_path)
-        self.get_anotations(dirs, db_path)
-        self.get_local_anot(dirs, df_deeploc)
+        self.get_annotations(dirs, db_path)
+        self.get_local_annot(dirs, df_deeploc)
 
     def get_signalp(self, dirs, db_path):
-        print('Calculating signal peptides')
+        print(f'Calculating signal peptides, {time.strftime("%H:%M %d/%m/%Y", time.localtime(time.time()))}')
         os.system(f'signalp6 --fastafile {db_path} --organism eukarya --output_dir {dirs[12]} --format txt --mode fast > {dirs[11]}/signalp.log 2>&1')
 
     def get_deep_tmhmm(self, dirs, db_path):
-        print('Calculating transmembrane domains')
+        print(f'Calculating transmembrane domains, {time.strftime("%H:%M %d/%m/%Y", time.localtime(time.time()))}')
         deeptmhmm = biolib.load('DTU/DeepTMHMM')
-
         deeptmhmm_log = f'{dirs[11]}/deeptmhmm.log'
 
         with open(deeptmhmm_log, 'w') as log:
@@ -199,7 +252,7 @@ class DomainAnalysis:
                 deeptmhmm_job.save_files(dirs[13])
 
     def get_pepstats(self, dirs, db_path):
-        print('Calculating protein stats')
+        print(f'Calculating protein stats, {time.strftime("%H:%M %d/%m/%Y", time.localtime(time.time()))}')
         out_stats = f'{dirs[5]}/pepstats.out'
         os.system(f'pepstats -sequence {db_path} -outfile {out_stats} > {dirs[11]}/pepstats.log 2>&1')
         lines = open(out_stats, "r").readlines()
@@ -216,14 +269,14 @@ class DomainAnalysis:
         return df_pepstats
 
     def get_deeploc(self, dirs, db_path):
-        print('Calculating subcellular localization')
+        print(f'Calculating subcellular localization, {time.strftime("%H:%M %d/%m/%Y", time.localtime(time.time()))}')
         os.system(f'deeploc2 -f {db_path} -o {dirs[6]} > {dirs[11]}/deeploc.log 2>&1')
         file_deeploc = f'{dirs[6]}/{os.listdir(dirs[6])[0]}'
         df_deeploc = pd.read_csv(file_deeploc, usecols=['Protein_ID', 'Localizations'])
         return df_deeploc
 
     def get_metadados(self, dirs, df_pepstats, df_deeploc, df_pfam_selected_united):
-        print('Collecting metadata')
+        print(f'Collecting metadata, {time.strftime("%H:%M %d/%m/%Y", time.localtime(time.time()))}')
         df_merged = pd.merge(df_pepstats, df_deeploc, on='Protein_ID')
         inregex = re.compile("_(.*)")
         df_merged['Query'] = df_merged['Protein_ID'].apply(lambda x: inregex.search(x).group(1))
@@ -240,7 +293,7 @@ class DomainAnalysis:
         df_merged_stats.to_csv(f'{dirs[1]}/metadados.csv', index=False)
 
     def get_filogeny(self, dirs, db_path):
-        print('Computing phylogenetic tree')
+        print(f'Computing phylogenetic tree, {time.strftime("%H:%M %d/%m/%Y", time.localtime(time.time()))}')
         cpu = self.parameters.param_cpu
         in_mafft = db_path
         out_mafft = f'{dirs[8]}/out.fasta'
@@ -265,8 +318,9 @@ class DomainAnalysis:
         # Usa o IQ-TREE para construir uma árvore filogenética a partir das sequências limpas (cleaned)
         os.system(f'iqtree2 -s {out_iqtree} -nt {cpu} -quiet -B 1000 -alrt 1000')
 
-    def get_local_anot(self, dirs, df_deeploc):
-        print('Generating sublocalization anotation')
+    def get_local_annot(self, dirs, df_deeploc):
+        print(f'Generating sublocalization annotation, {time.strftime("%H:%M %d/%m/%Y", time.localtime(time.time()))}')
+
         ref_colors = ['#ff0000', '#0000ff', '#00ff00', '#ffff00', '#00ffff', '#ff00ff', '#000000', '#ffffff', '#808080']
         labels = list(df_deeploc['Localizations'].unique())
         dict_colors = {label: ref_colors[i % len(ref_colors)] for i, label in enumerate(labels)}
@@ -274,14 +328,14 @@ class DomainAnalysis:
         shapes = ['1' for i in labels]
         shape_scales = ['1' for i in labels]
 
-        anot_data = {}
+        annot_data = {}
         for _, row in df_deeploc.iterrows():
             query = row['Protein_ID']
             label = row['Localizations']
-            labels_anot = f"1,1,{dict_colors[label]},1,1,{label}"
-            anot_data[query] = labels_anot
+            labels_annot = f"1,1,{dict_colors[label]},1,1,{label}"
+            annot_data[query] = labels_annot
 
-        anot = textwrap.dedent(f"""\
+        annot = textwrap.dedent(f"""\
         DATASET_SYMBOL
         SEPARATOR COMMA
         DATASET_LABEL,Localization
@@ -296,14 +350,14 @@ class DomainAnalysis:
         """)
 
         # {Protein_ID, symbol, size, color, fill, position, label}
-        anot += '\n'.join([f'{key},{values}' for key, values in anot_data.items()])
+        annot += '\n'.join([f'{key},{values}' for key, values in annot_data.items()])
 
         log = open(f'{dirs[4]}/itol_localizations.txt', 'w')
-        log.write(anot)
+        log.write(annot)
         log.close()
 
-    def get_file_anot(self, df, outfile, label, title, list_dom, list_sim, list_col):
-        anot = textwrap.dedent(f"""\
+    def get_file_annot(self, df, outfile, label, title, list_dom, list_sim, list_col):
+        annot = textwrap.dedent(f"""\
                 DATASET_DOMAINS
                 SEPARATOR COMMA
                 DATASET_LABEL,{label}
@@ -318,25 +372,25 @@ class DomainAnalysis:
                 DATA
                 """)
 
-        anot_data = {}
+        annot_data = {}
 
         for _, row in df.iterrows():
-            query_anot = f"{row['Query']},{row['Qlen']}"
-            domain_anot = f"{row['Symbol']}|{row['From']}|{row['To']}|{row['Color']}|{row['Domain']}"
+            query_annot = f"{row['Query']},{row['Qlen']}"
+            domain_annot = f"{row['Symbol']}|{row['From']}|{row['To']}|{row['Color']}|{row['Domain']}"
 
-            if query_anot in anot_data:
-                anot_data[query_anot].append(domain_anot)
+            if query_annot in annot_data:
+                annot_data[query_annot].append(domain_annot)
             else:
-                anot_data[query_anot] = [domain_anot]
+                annot_data[query_annot] = [domain_annot]
 
-        anot += '\n'.join([f'{key},{",".join(values)}' for key, values in anot_data.items()])
+        annot += '\n'.join([f'{key},{",".join(values)}' for key, values in annot_data.items()])
 
         log = open(outfile, 'w')
-        log.write(anot)
+        log.write(annot)
         log.close()
 
-    def get_anotations(self, dirs, db_path):
-        print('Generating domains anotations')
+    def get_annotations(self, dirs, db_path):
+        print(f'Generating domain annotations, {time.strftime("%H:%M %d/%m/%Y", time.localtime(time.time()))}')
 
         # Fasta
         database = SeqIO.to_dict(SeqIO.parse(db_path, 'fasta'))
@@ -443,5 +497,5 @@ class DomainAnalysis:
                 list_sim = ['RE', 'RE']
                 list_col = ['#ff0000', '#0000ff']
 
-            self.get_file_anot(df, outfile, label, title, list_dom, list_sim, list_col)
+            self.get_file_annot(df, outfile, label, title, list_dom, list_sim, list_col)
 
