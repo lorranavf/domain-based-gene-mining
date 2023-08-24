@@ -79,7 +79,7 @@ class DomainAnalysis:
         if analysis == 'full_analysis':
             outdir = f'out.{self.parameters.param_outdir}'
             dirs = [outdir,
-                    f'{outdir}/metadados',
+                    f'{outdir}/metadata',
                     f'{outdir}/pfam',
                     f'{outdir}/fasta',
                     f'{outdir}/itol',
@@ -290,7 +290,7 @@ class DomainAnalysis:
                                            'MolecularWeight',
                                            'Localizations',
                                            'Domains']]
-        df_merged_stats.to_csv(f'{dirs[1]}/metadados.csv', index=False)
+        df_merged_stats.to_csv(f'{dirs[1]}/metadata.csv', index=False)
 
     def get_filogeny(self, dirs, db_path):
         print(f'Computing phylogenetic tree, {time.strftime("%H:%M %d/%m/%Y", time.localtime(time.time()))}')
