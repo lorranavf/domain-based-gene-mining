@@ -24,32 +24,43 @@ Finally, it generates a database containing the sequence data, phylogenetic tree
 
 ### Usage
 
-First, save the protein FASTA files in the 'in.files' directory and the Pfam database in the 'in.pfam' directory. See below for instructions on how to prepare the Pfam database.
+The script can be executed using two strategies: either a domain-based selection of the target sequences or the other strategy, which involves pre-selection based first on similarity and then on domain. 
+
+In the first strategy, it is necessary to enter a directory with protein files and a dictionary of these files. 
+
+In the other strategy, it is necessary to specify the database of the target specie and a fasta file containing the proteins known as references for the gene family.
+
+**Domain-Based Gene Mining**
+
+First, save the protein FASTA files in the 'in.files.db' directory and the Pfam database in the 'in.pfam' directory. See below for instructions on how to prepare the Pfam database.
 Then, create the script run.py with the following commands:
 
 ```python
 from gene_mining import Parameters, DomainAnalysis
 
 codes = {'Code_pattern_for_specie_one': ['Specie Abbreviation', 'Specie']}
+domain = ['pfam_short_name']
+outdir = 'outdir_of_the_full_analysis_based_on_domain'
 
 parameters = Parameters(param_seq_dicio = codes,
                         param_seq_ext= '.faa',
                         param_seq_regex= '^\w*.\d',
-                        param_seq_path = 'in.files',
+                        param_seq_path = 'in.files.db',
                         param_pfam_in= 'in.pfam/Pfam-A.hmm',
                         param_pfam_out = 'out.pfam',
-                        param_domain = None,
+                        param_domain = domain,
                         param_domain_group = False,
-                        param_outdir = None,
-                        param_cpu = 4,
+                        param_outdir = outdir,
                         param_hmm_analysis = True,
-                        param_full_analysis = True)
+                        param_full_analysis = True,
+                        param_cpu = 4)
 
 DomainAnalysis(parameters).run()
 ```
 Note that the script run.py should be in the same directory as gene_mining.py.
 
 After obtaining the domain analysis for the first time, setting `param_full_analysis=False`. 
+
 Then you can run the analysis again, this time setting `param_hmm_analysis = False`, and obtain subsequent analyses for as many targets as desired. 
 
 For example:
@@ -63,7 +74,7 @@ metadata = Parameters(param_seq_dicio=codes,
 DomainAnalysis(metadata).run()
 
 params = [['outdir_domain_one', ['Domain1']],
-          ['outdir_domain_two', ['Domain2']]
+          ['outdir_domain_two', ['Domain2']]]
 
 for outdir, domain in params:
    
@@ -74,10 +85,37 @@ for outdir, domain in params:
                           param_outdir=outdir,
                           param_hmm_analysis=False)
 
-    DomainAnalysis(metadata).run()
+DomainAnalysis(metadata).run()
 ```
 
-Here's an explanation for each of the parameters:
+**Similarity and Domain-Based Gene Mining**
+
+First, save the protein FASTA files of the target specie in the 'in.files.blastp.db' directory, the FASTA file of the known proteins (references) in the 'in.pfiles.blastp.reference' directory, and the Pfam database in the 'in.pfam' directory. Refer below for instructions on how to prepare the Pfam database.
+Next, create the 'run.py' script with the following commands:
+
+```python
+from gene_mining import Parameters, DomainAnalysis
+
+domain = ['pfam_short_name']
+outdir = 'outdir_of_the_full_analysis_based_on_domain'
+
+metadata = Parameters(param_seq_ext = '.faa',
+                      param_pfam_in = 'in.pfam/Pfam-A.hmm',
+                      param_blastdb = 'in.files.blastp.db/blastdb.faa',
+                      param_blast_reference = 'in.files.blastp.reference/reference.faa',
+                      param_seq_path = 'in.files.db',
+                      param_blast_out = 'out.blastp',
+                      param_pfam_out = 'out.pfam',
+                      param_outdir = outdir,
+                      param_domain = domain,
+                      param_domain_group = False,
+                      param_blast_analysis=True,
+                      param_cpu = 4)
+
+DomainAnalysis(parameters).run()
+```
+
+**Here's an explanation for each of the parameters:**
 
 - `param_seq_dicio`: A dictionary mapping assembly codes to their corresponding species names. It provides information about the relationship between assembly codes and species names.
 
@@ -97,15 +135,23 @@ Here's an explanation for each of the parameters:
 
 - `param_outdir`: The output directory for the analysis results. It determines where the generated output files and directories will be saved.
 
-- `param_cpu`: The number of CPUs to use for parallel processing. It specifies the desired level of parallelism for the analysis.
+- `param_blastdb`: It specifies the path of the database of the target specie used for performing blastp analysis.
+
+- `param_blast_reference`: It indicates the path of the FASTA file containing known protein sequences that will be used as references in the blastp analysis.
+
+- `param_blast_out`: It specifies the location where the table fmt6 format of the blastp analysis will be saved.
 
 - `param_hmm_analysis`: A boolean flag indicating whether to perform HMM analysis. It determines whether the script will execute the HMM analysis step.
 
 - `param_full_analysis`: A boolean flag indicating whether to perform the full analysis. It determines whether the script will execute the full analysis, including HMM analysis and subsequent steps.
 
+- `param_blast_analysis`: A boolean flag indicating whether to perform the blastp analysis. It mandates that the `param_blastdb` and `param_blast_reference` must be included in the list of parameters.
+
+- `param_cpu`: The number of CPUs to use for parallel processing. It specifies the desired level of parallelism for the analysis.
+
 Adjust these parameters based on your specific needs and preferences before running the script run.py.
 
-To prepare the Pfam database, follow these steps:
+**To prepare the Pfam database, follow these steps:**
 
 1. Download the [Pfam database](https://ftp.ebi.ac.uk/pub/databases/Pfam/current_release/) from the Pfam website.
 2. Once downloaded, navigate to the terminal.
@@ -130,6 +176,7 @@ Make sure to follow these steps carefully to properly prepare the Pfam database 
 # Requirements
 To use the gene_mining.py script, you need to have the following programs installed:
 
+- [BLAST+](https://blast.ncbi.nlm.nih.gov/doc/blast-help/downloadblastdata.html)
 - [HMMER (hmmscan)](http://hmmer.org/) 
 - [CATH Tools (cath-resolve-hits)](https://cath-tools.readthedocs.io/en/latest/tools/cath-resolve-hits/)
 - [EMBOSS (pepstats)](http://emboss.open-bio.org/rel/rel6/apps/pepstats.html)
