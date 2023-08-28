@@ -217,7 +217,12 @@ class DomainAnalysis:
                 seq.description = ''
             dbs_faa.append(database_selected)
 
+
         table_selected_united = pd.concat(tables_pfam)
+
+        if self.parameters.param_blast_analysis:
+            table_selected_united = table_selected_united[['Query', 'Domains']]
+
         table_selected_united.to_csv(f'{dirs[2]}/pfam_profile.csv', index=False)
 
         tables_itol_united = pd.concat(tables_itol)
@@ -282,14 +287,21 @@ class DomainAnalysis:
         df_merged['Query'] = df_merged['Protein_ID'].apply(lambda x: inregex.search(x).group(1))
         df_merged = df_merged[['Query', 'ProteinLength', 'IsoelectricPoint', 'MolecularWeight', 'Localizations']]
         df_merged_stats = pd.merge(df_merged, df_pfam_selected_united, on='Query')
-        df_merged_stats = df_merged_stats[['Specie',
-                                           'Assembly',
-                                           'Query',
-                                           'ProteinLength',
-                                           'IsoelectricPoint',
-                                           'MolecularWeight',
-                                           'Localizations',
-                                           'Domains']]
+
+
+        if self.parameters.param_blast_analysis:
+            columns = ['Query', 'ProteinLength', 'IsoelectricPoint', 'MolecularWeight', 'Localizations', 'Domains']
+        else:
+            columns = ['Specie',
+                       'Assembly',
+                       'Query',
+                       'ProteinLength',
+                       'IsoelectricPoint',
+                       'MolecularWeight',
+                       'Localizations',
+                       'Domains']
+
+        df_merged_stats = df_merged_stats[columns]
         df_merged_stats.to_csv(f'{dirs[1]}/metadata.csv', index=False)
 
     def get_filogeny(self, dirs, db_path):
