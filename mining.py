@@ -1,5 +1,6 @@
 import biolib
 import contextlib
+import colorsys
 import os
 import pandas as pd
 import random
@@ -12,6 +13,8 @@ from Bio import SeqIO
 from dataclasses import dataclass
 from typing import List, Pattern
 from tqdm import trange
+from ete3 import Tree, faces, TreeStyle
+
 warnings.filterwarnings("ignore")
 
 
@@ -33,9 +36,10 @@ class Parameters:
     param_domain_group: bool = False
     param_hmm_analysis: bool = True
     param_full_analysis: bool = True
+    param_filogeny_analysis: bool = True
     param_blast_analysis: bool = False
+    param_orthogroup_analysis: bool = False
     param_cpu: int = 8
-
 
 class DomainAnalysis:
     """
@@ -91,7 +95,10 @@ class DomainAnalysis:
                     f'{outdir}/filogeny/iqtree',
                     f'{outdir}/log',
                     f'{outdir}/signalp',
-                    f'{outdir}/deep_tmhmm']
+                    f'{outdir}/deep_tmhmm',
+                    f'{outdir}/orthofinder',
+                    f'{outdir}/orthofinder/input',
+                    f'{outdir}/figures']
 
             for directory in dirs:
                 if os.path.exists(directory):
@@ -210,6 +217,8 @@ class DomainAnalysis:
                 seq.id = f'{name_ab}_{seq.id}'
                 seq.name = ''
                 seq.description = ''
+            
+            SeqIO.write(database_selected, f'{dirs[15]}/{assembly}.fasta', 'fasta')
 
             tables_pfam.append(table_pfam)
             tables_itol.append(table_itol)
@@ -226,15 +235,27 @@ class DomainAnalysis:
         database_selected_united = [record for database in dbs_faa for record in database]
         SeqIO.write(database_selected_united, f'{dirs[3]}/database_selected_united.fasta', 'fasta')
 
-        db_path = f'{dirs[3]}/database_selected_united.fasta'
-        df_pepstats = self.get_pepstats(dirs, db_path)
-        #df_deeploc = self.get_deeploc(dirs, db_path)
-        #self.get_metadados(dirs, df_pepstats, df_deeploc, table_selected_united)
-        self.get_signalp(dirs, db_path)
-        self.get_deep_tmhmm(dirs, db_path)
-        self.get_annotations(dirs, db_path)
-        #self.get_local_annot(dirs, df_deeploc)
-        self.get_filogeny(dirs, db_path)
+        # db_path = f'{dirs[3]}/database_selected_united.fasta'
+        # df_pepstats = self.get_pepstats(dirs, db_path)
+        # df_deeploc = self.get_deeploc(dirs, db_path)
+        # self.get_metadados(dirs, df_pepstats, df_deeploc, table_selected_united)
+        # self.get_signalp(dirs, db_path)
+        # self.get_deep_tmhmm(dirs, db_path)
+        # self.get_annotations(dirs, db_path)
+        # self.get_local_annot(dirs, df_deeploc)
+
+        # if self.parameters.param_filogeny_analysis:
+        #     self.get_filogeny(dirs, db_path)
+
+        if self.parameters.param_orthogroup_analysis:
+
+            self.get_orthogroups(dirs) 
+
+            orthodir = os.listdir(f'{dirs[14]}/output')[0]
+
+            tree_species = os.path.join(f'{dirs[14]}/output', orthodir, 'Species_Tree/SpeciesTree_rooted.txt')   
+            
+            self.get_species_tree(dirs, tree_species)    
 
     @staticmethod
     def get_signalp(dirs, db_path):
@@ -350,22 +371,115 @@ class DomainAnalysis:
         os.system(f'cp {out_cialign}_cleaned.fasta {dirs[10]}')
         os.system(f'iqtree2 -s {out_iqtree} -nt {cpu} -quiet -B 1000 -alrt 1000')
 
-    @staticmethod
-    def get_local_annot(dirs, df_deeploc):
-        print(f'Generating sublocalization annotation, {time.strftime("%H:%M %d/%m/%Y", time.localtime(time.time()))}')
+    def get_orthogroups(self, dirs):
+        now = time.strftime("%H:%M %d/%m/%Y", time.localtime(time.time()))
+        print(f'Obtaining orthogroups, {now}')
 
-        ref_colors = ['#ff0000', '#0000ff', '#00ff00', '#ffff00', '#00ffff', '#ff00ff', '#000000', '#ffffff', '#808080']
+        infile = dirs[15]
+        outfile = f'{dirs[14]}/output'
+        cpu = self.parameters.param_cpu
+        log = f'{dirs[11]}/orthofinder.log 2>&1'
+        command = f'orthofinder -f {infile} -o {outfile} -a {cpu} > {log}' 
+        os.system(command)
+    
+    def get_species_tree(self, dirs, filename):
+
+        code2names = self.parameters.param_seq_dicio
+
+        orders = set([value[2] for value in code2names.values()])
+        colors = self.get_colors(orders)
+
+        order2color = {order:color for order,color in zip(orders, colors)}
+
+        def get_node_name(node):
+
+            if node.is_leaf():
+
+                name = code2names[node.name][0]
+                order = code2names[node.name][2]
+                color = order2color[order]
+
+                # node name
+                longNameFace = faces.TextFace(name, fsize=15, fgcolor='dark', bold=True)
+                faces.add_face_to_node(longNameFace, node, column=0, position="aligned")
+
+                # node description
+                descFace = faces.TextFace(order, fsize=15)
+                descFace.hz_align = 1
+                descFace.background.color = color
+                descFace.margin_left = 10
+                faces.add_face_to_node(descFace, node, column=1, aligned=True)
+                
+                # node shape
+                node.img_style['size'] = 0
+
+            else:
+                # node shape
+                node.img_style["size"] = 0
+
+        t = Tree(filename)
+        ts = TreeStyle()
+        ts.layout_fn = get_node_name
+        ts.show_leaf_name = True
+        ts.show_branch_support = True
+        ts.show_branch_length = True
+        
+        def create_outdir():
+            os.mkdir(f'{dirs[16]}/out.tree.species')
+            return f'{dirs[16]}/out.tree.species'
+
+        outdir = create_outdir()
+
+        outfiles = [f'{outdir}/{os.path.basename(outfile)}{extension}' for extension in ['.pdf','.png','.svg'] for outfile in [os.path.splitext(filename)[0]]]
+        
+        for outfile in outfiles:
+            t.render(outfile, tree_style=ts)
+
+
+    @staticmethod
+    def get_colors(labels):
+
+        def random_color():
+            hue = random.random()
+            saturation = 0.5
+            luminosity = 0.5
+            rgb = colorsys.hls_to_rgb(hue, luminosity, saturation)
+            color = "#{:02x}{:02x}{:02x}".format(
+            int(rgb[0] * 255), int(rgb[1] * 255), int(rgb[2] * 255))
+            return color
+
+        colors = set()
+
+        while len(colors) < len(labels):
+
+            color = random_color()
+
+            if color == '#FFFFFF':
+                pass
+            elif color == '#ff0000':
+                pass
+            elif color == '#0000ff':
+                pass
+            else:
+                colors.add(color)
+
+        return colors
+
+    def get_local_annot(self, dirs, df_deeploc):
+        print(f'Generating sublocalization annotation, {time.strftime("%H:%M %d/%m/%Y", time.localtime(time.time()))}')
+        
         labels = list(df_deeploc['Localizations'].unique())
-        dict_colors = {label: ref_colors[i % len(ref_colors)] for i, label in enumerate(labels)}
-        colors = [values for keys, values in dict_colors.items()]
         shapes = ['1' for _ in labels]
-        shape_scales = ['1' for _ in labels]
+        scales = ['1' for _ in labels]
+        colors = self.get_colors(labels)
+
+        label2color = {label:color for label,color in zip(labels, colors)}
 
         annot_data = {}
         for _, row in df_deeploc.iterrows():
             query = row['Protein_ID']
             label = row['Localizations']
-            labels_annot = f"1,1,{dict_colors[label]},1,1,{label}"
+            labels_annot = f"1,1,{label2color[label]},1,1,{label}"
             annot_data[query] = labels_annot
 
         annot = textwrap.dedent(f"""\
@@ -378,7 +492,7 @@ class DomainAnalysis:
         LEGEND_SHAPES,{','.join(shapes)}
         LEGEND_COLORS,{','.join(colors)}
         LEGEND_LABELS,{','.join(labels)}
-        LEGEND_SHAPE_SCALES,{','.join(shape_scales)}
+        LEGEND_SHAPE_SCALES,{','.join(scales)}
         DATA
         """)
 
@@ -389,7 +503,7 @@ class DomainAnalysis:
         log.close()
 
     @staticmethod
-    def get_file_annot(df, outfile, label, title, list_dom, list_sim, list_col):
+    def get_file_annot(df, outfile, label, title, domains, shapes, colors):
         annot = textwrap.dedent(f"""\
                 DATASET_DOMAINS
                 SEPARATOR COMMA
@@ -399,9 +513,9 @@ class DomainAnalysis:
                 GRADIENT_FILL,1
                 SHOW_DOMAIN_LABELS,1
                 LEGEND_TITLE,{title}
-                LEGEND_LABELS,{','.join(list_dom)}
-                LEGEND_SHAPES,{','.join(list_sim)}
-                LEGEND_COLORS,{','.join(list_col)}
+                LEGEND_LABELS,{','.join(domains)}
+                LEGEND_SHAPES,{','.join(shapes)}
+                LEGEND_COLORS,{','.join(colors)}
                 DATA
                 """)
 
@@ -425,34 +539,17 @@ class DomainAnalysis:
     def get_annotations(self, dirs, db_path):
         print(f'Generating domain annotations, {time.strftime("%H:%M %d/%m/%Y", time.localtime(time.time()))}')
 
-        # Fasta
         database = SeqIO.to_dict(SeqIO.parse(db_path, 'fasta'))
-
-        # Pfam
-        dicio_itol = {
-            'RE': ['#00ff00', '#ffff00', '#00ffff', '#ff00ff', '#000000', '#ffffff', '#808080'],
-            'HH': ['#ff0000', '#0000ff', '#00ff00', '#ffff00', '#00ffff', '#ff00ff', '#000000', '#808080'],
-            'HV': ['#ff0000', '#0000ff', '#00ff00', '#ffff00', '#00ffff', '#ff00ff', '#000000', '#808080'],
-            'EL': ['#ff0000', '#0000ff', '#00ff00', '#ffff00', '#00ffff', '#ff00ff', '#000000', '#808080'],
-            'DI': ['#ff0000', '#0000ff', '#00ff00', '#ffff00', '#00ffff', '#ff00ff', '#000000', '#808080'],
-            'TR': ['#ff0000', '#0000ff', '#00ff00', '#ffff00', '#00ffff', '#ff00ff', '#000000', '#808080'],
-            'TL': ['#ff0000', '#0000ff', '#00ff00', '#ffff00', '#00ffff', '#ff00ff', '#000000', '#808080'],
-            'PL': ['#ff0000', '#0000ff', '#00ff00', '#ffff00', '#00ffff', '#ff00ff', '#000000', '#808080'],
-            'PR': ['#ff0000', '#0000ff', '#00ff00', '#ffff00', '#00ffff', '#ff00ff', '#000000', '#808080'],
-            'PU': ['#ff0000', '#0000ff', '#00ff00', '#ffff00', '#00ffff', '#ff00ff', '#000000', '#808080'],
-            'PD': ['#ff0000', '#0000ff', '#00ff00', '#ffff00', '#00ffff', '#ff00ff', '#000000', '#808080'],
-            'OC': ['#ff0000', '#0000ff', '#00ff00', '#ffff00', '#00ffff', '#ff00ff', '#000000', '#808080'],
-            'GP': ['#ff0000', '#0000ff', '#00ff00', '#ffff00', '#00ffff', '#ff00ff', '#000000', '#808080']}
-
         df_itol = pd.read_csv(f'{dirs[2]}/pfam_coordinates.itol')
-        list_leg = [[k, value] for k, values in dicio_itol.items() for value in values]
-        list_dom = df_itol['Domain'].unique().tolist()
-        list_num = random.sample(range(len(list_leg)), len(list_dom))
-        list_sim = [list_leg[i][0] for i in list_num]
-        list_col = [list_leg[i][1] for i in list_num]
-        dici_dom = {dom: [sim, col] for dom, sim, col in zip(list_dom, list_sim, list_col)}
-        df_itol['Symbol'] = df_itol['Domain'].apply(lambda x: next(v[0] for k, v in dici_dom.items() if x == k))
-        df_itol['Color'] = df_itol['Domain'].apply(lambda x: next(v[1] for k, v in dici_dom.items() if x == k))
+
+        domains = list(df_itol['Domain'].unique())
+        shapes = ['RE' for _ in range(len(domains))]
+        colors = self.get_colors(domains)
+
+        domain2color = {domain: [shape, color] for domain, shape, color in zip(domains, shapes, colors)}
+
+        df_itol['Symbol'] = df_itol['Domain'].apply(lambda x: next(v[0] for k, v in domain2color.items() if x == k))
+        df_itol['Color'] = df_itol['Domain'].apply(lambda x: next(v[1] for k, v in domain2color.items() if x == k))
         df_itol['Qlen'] = df_itol['Query'].apply(lambda x: len(database[x].seq) if x in database else None)
         df_itol = df_itol[['Query', 'Qlen', 'From', 'To', 'Domain', 'Symbol', 'Color']]
 
@@ -506,13 +603,13 @@ class DomainAnalysis:
                 pass
 
             if label == 'Domains':
-                list_dom.extend(['Signal Peptide', 'Transmembrane Domains'])
-                list_sim.extend(['RE', 'RE'])
-                list_col.extend(['#ff0000', '#0000ff'])
+                domains.extend(['Signal Peptide', 'Transmembrane Domains'])
+                shapes.extend(['RE', 'RE'])
+                colors.update(['#ff0000', '#0000ff'])
 
             if label == 'SP & TM':
-                list_dom = ['Signal Peptide', 'Transmembrane Domains']
-                list_sim = ['RE', 'RE']
-                list_col = ['#ff0000', '#0000ff']
+                domains = ['Signal Peptide', 'Transmembrane Domains']
+                shapes = ['RE', 'RE']
+                colors = ['#ff0000', '#0000ff']
 
-            self.get_file_annot(df, outfile, label, title, list_dom, list_sim, list_col)
+            self.get_file_annot(df, outfile, label, title, domains, shapes, colors)
