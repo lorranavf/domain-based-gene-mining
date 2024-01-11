@@ -23,7 +23,7 @@ def check_libraries():
 def check_programs():
     # List of expected programs
     programs = ['makeblastdb', 'blastp', 'hmmscan', 'cath-resolve-hits', 'signalp6',
-                'pepstats', 'deeploc2', 'mafft', 'CIAlign', 'iqtree2', 'docker']
+                'pepstats', 'deeploc2', 'mafft', 'CIAlign', 'iqtree', 'docker']
 
     missing_programs = []
     for program in programs:

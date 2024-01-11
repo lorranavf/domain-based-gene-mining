@@ -228,12 +228,12 @@ class DomainAnalysis:
 
         db_path = f'{dirs[3]}/database_selected_united.fasta'
         df_pepstats = self.get_pepstats(dirs, db_path)
-        df_deeploc = self.get_deeploc(dirs, db_path)
-        self.get_metadados(dirs, df_pepstats, df_deeploc, table_selected_united)
+        #df_deeploc = self.get_deeploc(dirs, db_path)
+        #self.get_metadados(dirs, df_pepstats, df_deeploc, table_selected_united)
         self.get_signalp(dirs, db_path)
         self.get_deep_tmhmm(dirs, db_path)
         self.get_annotations(dirs, db_path)
-        self.get_local_annot(dirs, df_deeploc)
+        #self.get_local_annot(dirs, df_deeploc)
         self.get_filogeny(dirs, db_path)
 
     @staticmethod

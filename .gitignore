@@ -132,15 +132,5 @@ dmypy.json
 .pyre/
 
 # Exemples directories
-exemple/
-out.pfam/
-out.mate.v1/
-out.peptidase.v1/
-run.py
-in.files.blastp.db/
-in.blastdb/
-in.files.blastp.reference/
-in.files.db/
-teste.py
-out.blastp/
-out.wox/
+in.*
+out.*
