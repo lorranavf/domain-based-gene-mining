@@ -1,10 +1,9 @@
 import importlib
 import subprocess
 def check_libraries():
-    # Lista de bibliotecas necessárias
+
     libraries = ['biolib', 'Bio', 'pandas']
 
-    # Verifica se cada biblioteca está instalada
     missing_libraries = []
     for library in libraries:
         try:
@@ -21,11 +20,12 @@ def check_libraries():
 
 
 def check_programs():
-    # List of expected programs
+
     programs = ['makeblastdb', 'blastp', 'hmmscan', 'cath-resolve-hits', 'signalp6',
                 'pepstats', 'deeploc2', 'mafft', 'CIAlign', 'iqtree', 'docker']
 
     missing_programs = []
+    
     for program in programs:
         try:
             # Execute the shell command to check if the program is present
