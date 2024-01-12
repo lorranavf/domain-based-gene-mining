@@ -13,7 +13,7 @@ from Bio import SeqIO
 from dataclasses import dataclass
 from typing import List, Pattern
 from tqdm import trange
-from ete3 import Tree, faces, TreeStyle
+from ete3 import Tree, faces, TreeStyle, SeqMotifFace
 
 warnings.filterwarnings("ignore")
 
@@ -235,17 +235,18 @@ class DomainAnalysis:
         database_selected_united = [record for database in dbs_faa for record in database]
         SeqIO.write(database_selected_united, f'{dirs[3]}/database_selected_united.fasta', 'fasta')
 
-        # db_path = f'{dirs[3]}/database_selected_united.fasta'
-        # df_pepstats = self.get_pepstats(dirs, db_path)
-        # df_deeploc = self.get_deeploc(dirs, db_path)
-        # self.get_metadados(dirs, df_pepstats, df_deeploc, table_selected_united)
-        # self.get_signalp(dirs, db_path)
-        # self.get_deep_tmhmm(dirs, db_path)
-        # self.get_annotations(dirs, db_path)
-        # self.get_local_annot(dirs, df_deeploc)
+        db_path = f'{dirs[3]}/database_selected_united.fasta'
 
-        # if self.parameters.param_filogeny_analysis:
-        #     self.get_filogeny(dirs, db_path)
+        df_pepstats = self.get_pepstats(dirs, db_path)
+        df_deeploc = self.get_deeploc(dirs, db_path)
+        self.get_metadados(dirs, df_pepstats, df_deeploc, table_selected_united)
+        self.get_signalp(dirs, db_path)
+        self.get_deep_tmhmm(dirs, db_path)
+        self.get_annotations(dirs, db_path)
+        self.get_local_annot(dirs, df_deeploc)
+
+        if self.parameters.param_filogeny_analysis:
+            self.get_filogeny(dirs, db_path)
 
         if self.parameters.param_orthogroup_analysis:
 
@@ -256,6 +257,10 @@ class DomainAnalysis:
             tree_species = os.path.join(f'{dirs[14]}/output', orthodir, 'Species_Tree/SpeciesTree_rooted.txt')   
             
             self.get_species_tree(dirs, tree_species)    
+
+            tree_orthogroups = os.path.join(f'{dirs[14]}/output', orthodir, 'Resolved_Gene_Trees')  
+
+            self.get_orthogroups_trees(dirs, tree_orthogroups)
 
     @staticmethod
     def get_signalp(dirs, db_path):
@@ -424,18 +429,149 @@ class DomainAnalysis:
         ts.show_branch_support = True
         ts.show_branch_length = True
         
-        def create_outdir():
-            os.mkdir(f'{dirs[16]}/out.tree.species')
-            return f'{dirs[16]}/out.tree.species'
-
-        outdir = create_outdir()
+        outdir = f'{dirs[16]}/out.tree.species'
+        os.mkdir(outdir)
 
         outfiles = [f'{outdir}/{os.path.basename(outfile)}{extension}' for extension in ['.pdf','.png','.svg'] for outfile in [os.path.splitext(filename)[0]]]
         
         for outfile in outfiles:
             t.render(outfile, tree_style=ts)
 
+    def get_orthogroups_trees(self, dirs, indir):
 
+        outdir = f'{dirs[16]}/out.tree.orthogroups'
+
+        os.mkdir(outdir)
+        
+        database = f'{dirs[0]}/fasta/database_selected_united.fasta'
+        pfam = f'{dirs[0]}/itol/pfam.txt'
+        signals = f'{dirs[0]}/itol/signals.txt'
+        domains = f'{dirs[0]}/itol/domains.txt'
+        localizations = f'{dirs[0]}/itol/localizations.txt'
+
+        def get_domains(domains):
+
+            domains_list = [
+                [
+                    int(domain.split(sep='|')[1]),
+                    int(domain.split(sep='|')[2]),
+                    '[]',
+                    None,
+                    10,
+                    domain.split(sep='|')[3],
+                    domain.split(sep='|')[3],
+                    f'arial|10|black|{domain.split(sep="|")[4]}'
+
+                ] 
+                for domain in domains if len(domain.split(sep='|')) == 5]
+
+            return domains_list
+
+        lines = lambda x: [line.strip() for line in open(x)][12:]
+
+        name2seq = {record.name: str(record.seq) for record in SeqIO.parse(database, 'fasta')}
+        name2motifs = {line.split(sep=',')[0]: get_domains(line.split(sep=',')[2:]) for line in lines(pfam)}
+        name2signals = {line.split(sep=',')[0]: get_domains(line.split(sep=',')[2:]) for line in lines(signals)}
+        name2domains = {line.split(sep=',')[0]: get_domains(line.split(sep=',')[2:]) for line in lines(domains)}
+        name2loc = {line.split(',')[0]: [line.split(',')[3], line.split(',')[6]] for line in lines(localizations)}
+        
+        code2names = self.parameters.param_seq_dicio
+
+        orders = set([value[2] for value in code2names.values()])
+        colors = self.get_colors(orders)
+        order2color = {order:color for order,color in zip(orders, colors)}
+
+        def get_motif_tree(filename, outdir,
+                           name2seq, name2motifs, name2signals, name2domains, name2loc, 
+                           code2names, order2color,
+                           domain_structure=True, signal_structure=False, pfam_structure=False):
+
+        
+            
+
+            def get_node_faces(node):
+        
+                if node.is_leaf():
+
+                    name = node.name[15:]
+                    longNameFace = faces.TextFace(name, fsize=10, fgcolor='dark', bold=True)
+                    longNameFace.margin_right = 40
+                    faces.add_face_to_node(longNameFace, node, column=0, position="aligned")
+
+                    precode = node.name[0:15]
+                    subcode = precode.rsplit('_', 1)
+                    code = f'{subcode[0]}.{subcode[1]}'
+                    order = code2names[code][2]
+                    color = order2color[order]
+                    descFace = faces.TextFace(order, fsize=10)
+                    descFace.margin_left = 10
+                    descFace.margin_right = 10
+                    descFace.hz_align = 1
+                    descFace.inner_background.color = color
+                    faces.add_face_to_node(descFace, node, column=1, aligned=True)
+
+                    if name in name2loc:
+                        loc = name2loc.get(name)[1]
+                        color = name2loc.get(name)[0]
+
+                    else:
+                        loc = ''
+                        color = None
+                    loc_face = faces.TextFace(loc, fsize=10)
+                    loc_face.inner_background.color = color
+                    loc_face.hz_align = 1
+                    loc_face.margin_left = 10
+                    loc_face.margin_right = 10
+                    faces.add_face_to_node(loc_face, node, column=2, aligned=True)
+
+                    if domain_structure:
+                        sequence = name2seq.get(name)
+                        motifs = name2domains.get(name)
+                        domain_face = SeqMotifFace(sequence, motifs=motifs, seq_format="-")
+                        domain_face.margin_left = 10
+                        faces.add_face_to_node(domain_face, node, column=3, aligned=True)
+
+                    if signal_structure:
+                        sequence = name2seq.get(name)
+                        motifs = name2signals.get(name)
+                        signal_face = SeqMotifFace(sequence, motifs=motifs, seq_format="-")
+                        signal_face.margin_left = 10
+                        faces.add_face_to_node(signal_face, node, column=3, aligned=True)
+
+                    if pfam_structure:
+                        sequence = name2seq.get(name)
+                        motifs = name2motifs.get(name)
+                        pfam_face = SeqMotifFace(sequence, motifs=motifs, seq_format="-")
+                        pfam_face.margin_left = 10
+                        faces.add_face_to_node(pfam_face, node, column=3, aligned=True)
+                    
+                    node.img_style['size'] = 0
+
+                    
+                else:
+                    node.img_style["size"] = 0
+
+            t = Tree(filename, format=1)
+            ts = TreeStyle()
+            ts.layout_fn = get_node_faces
+            # ts.scale =  120
+            ts.show_leaf_name = False
+            ts.show_branch_support = True
+            ts.show_branch_length = True
+
+            outfiles = [f'{outdir}/{os.path.basename(outfile)}{extension}' for extension in ['.pdf','.png','.svg'] for outfile in [os.path.splitext(filename)[0]]]
+
+            for outfile in outfiles:
+                t.render(outfile, tree_style=ts)
+
+        trees = [os.path.join(indir,tree) for tree in os.listdir(indir)]
+
+        for tree in trees:
+            get_motif_tree(filename, tree,
+                           name2seq, name2motifs, name2signals, name2domains, name2loc, 
+                           code2names, order2color,
+                           domain_structure=True, signal_structure=False, pfam_structure=False)
+        
     @staticmethod
     def get_colors(labels):
 
