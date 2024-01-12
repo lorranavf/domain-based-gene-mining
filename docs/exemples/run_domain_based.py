@@ -18,6 +18,7 @@ metadata = Parameters(
             param_outdir='peptidase.v1',
             param_hmm_analysis=False,
             param_full_analysis=True,
+            param_filogeny_analysis=False,
             param_orthogroup_analysis=True)
 
 DomainAnalysis(metadata).run()
