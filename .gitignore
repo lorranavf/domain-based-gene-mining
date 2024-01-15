@@ -134,3 +134,4 @@ dmypy.json
 # Exemples directories
 in.*
 out.*
+programs
