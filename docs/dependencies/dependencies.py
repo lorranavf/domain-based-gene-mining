@@ -1,5 +1,7 @@
 import importlib
 import subprocess
+
+
 def check_libraries():
 
     libraries = ['biolib', 'Bio', 'pandas', 'seaborn']
@@ -21,15 +23,31 @@ def check_libraries():
 
 def check_programs():
 
-    programs = ['docker', 'mamba', 'makeblastdb', 'blastp', 'hmmscan', 'cath-resolve-hits', 'signalp6',
-                'pepstats', 'deeploc2', 'mafft', 'CIAlign', 'iqtree', 'orthofinder', 'ete3']
+    programs = [
+        'docker',
+        'mamba',
+        'makeblastdb',
+        'blastp',
+        'hmmscan',
+        'cath-resolve-hits',
+        'signalp6',
+        'pepstats',
+        'deeploc2',
+        'mafft',
+        'CIAlign',
+        'iqtree',
+        'orthofinder',
+        'ete3',
+    ]
 
     missing_programs = []
-    
+
     for program in programs:
         try:
             # Execute the shell command to check if the program is present
-            subprocess.check_output(['which', program], stderr=subprocess.DEVNULL)
+            subprocess.check_output(
+                ['which', program], stderr=subprocess.DEVNULL
+            )
 
         except subprocess.CalledProcessError:
             missing_programs.append(program)
@@ -40,6 +58,7 @@ def check_programs():
             print(program)
     else:
         print('All the required programs are present in the environment.')
+
 
 check_libraries()
 check_programs()
