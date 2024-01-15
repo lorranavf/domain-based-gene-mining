@@ -2,7 +2,7 @@ import importlib
 import subprocess
 def check_libraries():
 
-    libraries = ['biolib', 'Bio', 'pandas']
+    libraries = ['biolib', 'Bio', 'pandas', 'seaborn']
 
     missing_libraries = []
     for library in libraries:
@@ -21,8 +21,8 @@ def check_libraries():
 
 def check_programs():
 
-    programs = ['makeblastdb', 'blastp', 'hmmscan', 'cath-resolve-hits', 'signalp6',
-                'pepstats', 'deeploc2', 'mafft', 'CIAlign', 'iqtree', 'docker']
+    programs = ['docker', 'mamba', 'makeblastdb', 'blastp', 'hmmscan', 'cath-resolve-hits', 'signalp6',
+                'pepstats', 'deeploc2', 'mafft', 'CIAlign', 'iqtree', 'orthofinder', 'ete3']
 
     missing_programs = []
     
