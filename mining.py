@@ -110,7 +110,7 @@ class DomainAnalysis:
                 f'{outdir}/deep_tmhmm',
                 f'{outdir}/orthofinder',
                 f'{outdir}/orthofinder/input',
-                f'{outdir}/figures',
+                f'{outdir}/orthofinder/figures',
             ]
 
             for directory in dirs:
@@ -743,9 +743,12 @@ class DomainAnalysis:
 
                 if node.is_leaf():
 
-                    regex = re.compile('_._(.*)')
+                    if program=='iqtree':
+                        name = node.name
+                    else:
+                        regex = re.compile('_._(.*)')
+                        name = regex.search(node.name).group(1)
 
-                    name = regex.search(node.name).group(1)
                     longNameFace = faces.TextFace(
                         name, fsize=10, fgcolor='dark', bold=True
                     )
@@ -754,9 +757,20 @@ class DomainAnalysis:
                         longNameFace, node, column=0, position='aligned'
                     )
 
-                    precode = node.name[0:15]
-                    subcode = precode.rsplit('_', 1)
-                    code = f'{subcode[0]}.{subcode[1]}'
+                    if program=='iqtree':
+
+                        regex_abrev = re.compile('^([^_]+)')
+                        abrev = regex_abrev.search(node.name).group(1)
+
+                        for code_,names in code2names.items():
+                            if abrev == names[0]:
+                                code = code_
+                    
+                    else:
+                        precode = node.name[0:15]
+                        subcode = precode.rsplit('_', 1)
+                        code = f'{subcode[0]}.{subcode[1]}'
+
                     order = code2names[code][2]
                     color = order2color[order]
                     descFace = faces.TextFace(order, fsize=10)
