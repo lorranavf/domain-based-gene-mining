@@ -187,12 +187,15 @@ To use the gene_mining.py script, you need to have the following programs instal
 - [MAFFT](https://mafft.cbrc.jp/alignment/software/)
 - [CiAlign](https://pypi.org/project/cialign/)
 - [IQ-TREE2](http://www.iqtree.org/)
+- [Orthofinder](https://davidemms.github.io/)
+- [ete3](http://etetoolkit.org/docs/latest/index.html)
 
 You also need to have Python 3.x installed, along with the following Python modules:
 
 - [pybiolib](https://pypi.org/project/pybiolib/)
 - [biopython](https://biopython.org/)
 - [pandas](https://pandas.pydata.org/)
+- [seaborn](https://seaborn.pydata.org/index.html)
 
 ## Attention
 
