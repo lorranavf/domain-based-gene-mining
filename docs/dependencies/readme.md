@@ -21,7 +21,7 @@ First, download the following programs:
 
 ```bash
 # install python packages
-mamba install pandas biopython pybiolib cialign orthofinder ete3 seaborn
+mamba install pandas biopython pybiolib cialign orthofinder ete3 seaborn multiqc
 
 # from repo apt
 sudo apt install mafft -y
@@ -29,6 +29,7 @@ sudo apt install iqtree -y
 sudo apt install hmmer -y
 sudo apt install ncbi-blast+ -y
 sudo apt install emboss -y
+sudo apt install busco -y
 
 # install cath-resolve-hits
 curl -O -L https://github.com/UCLOrengoGroup/cath-tools/releases/download/v0.16.10/cath-resolve-hits.ubuntu-20.04

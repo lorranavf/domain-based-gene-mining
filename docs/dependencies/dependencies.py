@@ -38,6 +38,8 @@ def check_programs():
         'iqtree',
         'orthofinder',
         'ete3',
+        'multiqc',
+        'busco'
     ]
 
     missing_programs = []

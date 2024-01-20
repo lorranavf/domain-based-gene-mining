@@ -26,24 +26,27 @@ warnings.filterwarnings('ignore')
 class Parameters:
     """ """
 
-    param_seq_ext: str = '.faa'
-    param_seq_regex: Pattern[str] = '^\w*.\d'
-    param_pfam_in: str = 'in.pfam/Pfam-A.hmm'
-    param_blastdb: str = 'in.files.blastp.db/blastdb.faa'
-    param_blast_reference: str = 'in.files.blastp.reference/reference.faa'
-    param_seq_path: str = 'in.files.db'
-    param_pfam_out: str = 'out.pfam'
-    param_blast_out: str = 'out.blastp'
-    param_outdir: str = None
-    param_domain: List[str] = None
-    param_seq_dicio: dict = None
-    param_domain_group: bool = False
-    param_hmm_analysis: bool = True
-    param_full_analysis: bool = True
-    param_filogeny_analysis: bool = True
-    param_blast_analysis: bool = False
-    param_orthogroup_analysis: bool = False
-    param_cpu: int = 8
+    seq_ext: str = '.faa'
+    seq_regex: Pattern[str] = '^\w*.\d'
+    pfam_in: str = 'in.pfam/Pfam-A.hmm'
+    blastdb: str = 'in.files.blastp.db/blastdb.faa'
+    blast_reference: str = 'in.files.blastp.reference/reference.faa'
+    seq_path: str = 'in.files.db'
+    pfam_out: str = '_out.pfam'
+    blast_out: str = '_out.blastp'
+    busco_out: str = '_out.busco'
+    busco_lineage: str = 'arthropoda_odb10'
+    outdir: str = None
+    domain: List[str] = None
+    seq_dicio: dict = None
+    domain_group: bool = False
+    hmm_analysis: bool = True
+    busco_analysis: bool = False
+    full_analysis: bool = True
+    filogeny_analysis: bool = True
+    blast_analysis: bool = False
+    orthogroup_analysis: bool = False
+    cpu: int = 8
     domain_structure: bool = True
     pfam_structure: bool = False
     signal_structure: bool = False
@@ -57,18 +60,25 @@ class DomainAnalysis:
 
     def run(self):
 
-        if self.parameters.param_blast_analysis:
-            self.parameters.param_seq_dicio = {
+        if self.parameters.blast_analysis:
+            self.parameters.seq_dicio = {
                 'out_blastp.6': ['', 'Multiple species']
             }
             self.create_output_directory(analysis='blast_analysis')
-            self.get_similar_genes()
+            self.get_similar_genes()      
 
-        if self.parameters.param_hmm_analysis:
+        if self.parameters.hmm_analysis:
+                
             self.create_output_directory(analysis='hmm_analysis')
-            self.process_sequences()
+            self.process_sequences(analysis='hmm')
 
-        if self.parameters.param_full_analysis:
+        if self.parameters.busco_analysis:
+
+            self.create_output_directory(analysis='busco_analysis')
+            self.get_busco_lineage()    
+            self.process_sequences(analysis='busco')
+
+        if self.parameters.full_analysis:
             dirs = self.create_output_directory(analysis='full_analysis')
             self.filter_sequences_per_domain(dirs)
 
@@ -77,8 +87,8 @@ class DomainAnalysis:
         if analysis == 'blast_analysis':
 
             dirs = [
-                self.parameters.param_blast_out,
-                self.parameters.param_seq_path,
+                self.parameters.blast_out,
+                self.parameters.seq_path,
             ]
 
             for directory in dirs:
@@ -87,12 +97,20 @@ class DomainAnalysis:
                 os.mkdir(directory)
 
         if analysis == 'hmm_analysis':
-            if os.path.exists(self.parameters.param_pfam_out):
-                shutil.rmtree(self.parameters.param_pfam_out)
-            os.mkdir(self.parameters.param_pfam_out)
+            if os.path.exists(self.parameters.pfam_out):
+                shutil.rmtree(self.parameters.pfam_out)
+            os.mkdir(self.parameters.pfam_out)
+
+        if analysis == 'busco_analysis':
+            if os.path.exists(self.parameters.busco_out):
+                shutil.rmtree(self.parameters.busco_out)
+            os.mkdir(self.parameters.busco_out)
+
+            if os.path.exists('busco_downloads'):
+                shutil.rmtree('busco_downloads')
 
         if analysis == 'full_analysis':
-            outdir = f'out.{self.parameters.param_outdir}'
+            outdir = f'out.{self.parameters.outdir}'
             dirs = [
                 outdir,
                 f'{outdir}/metadata',
@@ -125,10 +143,10 @@ class DomainAnalysis:
         now = time.strftime('%H:%M %d/%m/%Y', time.localtime(time.time()))
         print(f'Obtaining proteins similar to the reference, {now}')
 
-        blastdb = self.parameters.param_blastdb
-        reference = self.parameters.param_blast_reference
-        outfmt6 = f'{self.parameters.param_blast_out}/blastp.out'
-        outfasta = f'{self.parameters.param_seq_path}/out_blastp.6.faa'
+        blastdb = self.parameters.blastdb
+        reference = self.parameters.blast_reference
+        outfmt6 = f'{self.parameters.blast_out}/blastp.out'
+        outfasta = f'{self.parameters.seq_path}/out_blastp.6.faa'
 
         comm_make_blastdb = f'makeblastdb -in {blastdb} -dbtype prot -parse_seqids > /dev/null 2>&1'
         os.system(comm_make_blastdb)
@@ -156,52 +174,90 @@ class DomainAnalysis:
             seq.description = ''
         SeqIO.write(database_selected_united, outfasta, 'fasta')
 
-    def process_sequences(self):
-        regex = re.compile(self.parameters.param_seq_regex)
-        ext = self.parameters.param_seq_ext
-        files = os.listdir(self.parameters.param_seq_path)
+    def process_sequences(self, analysis):
+
+        regex = re.compile(self.parameters.seq_regex)
+        ext = self.parameters.seq_ext
+        files = os.listdir(self.parameters.seq_path)
         files = [
             filename
             for filename in files
             if os.path.splitext(filename)[1] == ext
         ]
 
-        print(
-            f'Obtaining domains through hmmscan, {time.strftime("%H:%M %d/%m/%Y", time.localtime(time.time()))}'
-        )
+        if analysis=='hmm':
+
+            print(
+                f'Obtaining functional domains, {time.strftime("%H:%M %d/%m/%Y", time.localtime(time.time()))}'
+            )
+
+        if analysis=='busco':
+
+            print(
+                f'Obtaining completeness, {time.strftime("%H:%M %d/%m/%Y", time.localtime(time.time()))}'
+            )
 
         for i in trange(len(files), ncols=100):
             assembly = regex.search(files[i])[0]
-            seq = f'{self.parameters.param_seq_path}/{files[i]}'
-            self.get_domains(assembly, seq)
-            self.get_resolved_hits(assembly)
+            seq = f'{self.parameters.seq_path}/{files[i]}'
 
+            if analysis=='hmm':
+                self.get_domains(assembly, seq)
+                self.get_resolved_hits(assembly)
+
+            if analysis=='busco':
+                self.get_busco(assembly, seq)
+    
     def get_domains(self, assembly, seq):
 
-        infile = self.parameters.param_pfam_in
-        outfile = f'{self.parameters.param_pfam_out}/{assembly}'
-        cpu = self.parameters.param_cpu
+        infile = self.parameters.pfam_in
+        outfile = f'{self.parameters.pfam_out}/{assembly}'
+        cpu = self.parameters.cpu
         os.system(
             f'hmmscan --cpu {cpu} -E 1e-5 -o {outfile}.out --domtblout {outfile}.pfam {infile} {seq}'
-        )
+            )
 
     def get_resolved_hits(self, assembly):
-        file = f'{self.parameters.param_pfam_out}/{assembly}'
+        file = f'{self.parameters.pfam_out}/{assembly}'
         comm = f'cath-resolve-hits {file}.out \
                 --input-format hmmscan_out \
                 --hits-text-to-file {file}.resolved  \
                 --input-hits-are-grouped \
                 --quiet > /dev/null 2>&1'
         os.system(comm)
+    
+    def get_busco_lineage(self):
+
+        print(f'Getting lineage for completeness analysis, {time.strftime("%H:%M %d/%m/%Y", time.localtime(time.time()))}')
+        
+        cmd_download = f'busco --download_path {self.parameters.busco_out} --download {self.parameters.busco_lineage} > /dev/null 2>&1'
+        
+        os.system(cmd_download)
+    
+    def get_busco(self, assembly, seq):
+
+        outdir = self.parameters.busco_out
+        lineage = f'{outdir}/lineages/{self.parameters.busco_lineage}'
+        cpu = self.parameters.cpu
+
+        cmd_busco = f'busco -m protein -l {lineage} -c {cpu} -i {seq}  -o {assembly} --out_path {outdir} --download_path {outdir} --offline > /dev/null 2>&1'
+
+        os.system(cmd_busco)
+
+    def get_busco_stats(self):
+        pass
+
+        # cmd_multiqc = f'multiqc -o {self.parameters.busco_out/multiqc} -d {self.parameters.busco_out}/. > /dev/null 2>&1'
+        # os.system(cmd_multiqc)
 
     def filter_sequences_per_domain(self, dirs):
 
         now = time.strftime('%H:%M %d/%m/%Y', time.localtime(time.time()))
         print(f'Choosing sequences containing the target domain, {now}')
 
-        regex = re.compile(self.parameters.param_seq_regex)
-        ext = self.parameters.param_seq_ext
-        files = os.listdir(self.parameters.param_seq_path)
+        regex = re.compile(self.parameters.seq_regex)
+        ext = self.parameters.seq_ext
+        files = os.listdir(self.parameters.seq_path)
         files = [
             filename
             for filename in files
@@ -212,21 +268,21 @@ class DomainAnalysis:
         dbs_faa = []
 
         for i in range(len(files)):
-            domain = self.parameters.param_domain
-            domain_group = self.parameters.param_domain_group
-            dicio = self.parameters.param_seq_dicio
+            domain = self.parameters.domain
+            domain_group = self.parameters.domain_group
+            dicio = self.parameters.seq_dicio
             assembly = regex.search(files[i])[0]
-            seq = f'{self.parameters.param_seq_path}/{files[i]}'
+            seq = f'{self.parameters.seq_path}/{files[i]}'
             name_ab = next(
                 (
                     v[0]
-                    for k, v in self.parameters.param_seq_dicio.items()
+                    for k, v in self.parameters.seq_dicio.items()
                     if k == assembly
                 ),
                 None,
             )
 
-            path = f'{self.parameters.param_pfam_out}/{assembly}.resolved'
+            path = f'{self.parameters.pfam_out}/{assembly}.resolved'
             columns = [
                 'Query',
                 'Domain',
@@ -302,7 +358,7 @@ class DomainAnalysis:
 
         table_selected_united = pd.concat(tables_pfam)
 
-        if self.parameters.param_blast_analysis:
+        if self.parameters.blast_analysis:
             table_selected_united = table_selected_united[['Query', 'Domains']]
 
         table_selected_united.to_csv(
@@ -332,14 +388,14 @@ class DomainAnalysis:
         self.get_domains_annot(dirs, db_path)
         self.get_loc_annot(dirs)
 
-        if self.parameters.param_orthogroup_analysis:
+        if self.parameters.orthogroup_analysis:
 
             self.get_orthogroups(dirs)
             self.get_species_tree(dirs)
             self.get_orthogroups_stats(dirs)
             self.get_trees(dirs, program='orthofinder')
 
-        if self.parameters.param_filogeny_analysis:
+        if self.parameters.filogeny_analysis:
             self.get_filogeny(dirs, db_path)
             self.get_trees(dirs, program='iqtree')
 
@@ -453,7 +509,7 @@ class DomainAnalysis:
             df_merged, df_pfam_selected_united, on='Query'
         )
 
-        if self.parameters.param_blast_analysis:
+        if self.parameters.blast_analysis:
             columns = [
                 'Query',
                 'ProteinLength',
@@ -463,7 +519,7 @@ class DomainAnalysis:
                 'Domains',
             ]
 
-        elif self.parameters.param_orthogroup_analysis:
+        elif self.parameters.orthogroup_analysis:
             orthodir = os.listdir(f'{dirs[14]}/output')[0]
             orthofile = os.path.join(
                 f'{dirs[14]}/output', orthodir, 'Orthogroups/Orthogroups.txt'
@@ -516,7 +572,7 @@ class DomainAnalysis:
         now = time.strftime('%H:%M %d/%m/%Y', time.localtime(time.time()))
         print(f'Computing phylogenetic tree, {now}')
 
-        cpu = self.parameters.param_cpu
+        cpu = self.parameters.cpu
         in_mafft = db_path
         out_mafft = f'{dirs[8]}/out.fasta'
         out_cialign = f'{dirs[9]}/out'
@@ -544,7 +600,7 @@ class DomainAnalysis:
 
         infile = dirs[15]
         outfile = f'{dirs[14]}/output'
-        cpu = self.parameters.param_cpu
+        cpu = self.parameters.cpu
         log = f'{dirs[11]}/orthofinder.log 2>&1'
         command = f'orthofinder -f {infile} -o {outfile} -a {cpu} > {log}'
         os.system(command)
@@ -558,7 +614,7 @@ class DomainAnalysis:
             'Species_Tree/SpeciesTree_rooted.txt',
         )
 
-        code2names = self.parameters.param_seq_dicio
+        code2names = self.parameters.seq_dicio
         orders = set([value[2] for value in code2names.values()])
         colors = self.get_colors(orders)
 
@@ -717,7 +773,7 @@ class DomainAnalysis:
         else:
             pfam_structure = False
 
-        code2names = self.parameters.param_seq_dicio
+        code2names = self.parameters.seq_dicio
 
         orders = set([value[2] for value in code2names.values()])
         colors = self.get_colors(orders)
@@ -951,7 +1007,7 @@ class DomainAnalysis:
         )
 
         t = Tree(filename_species_tree)
-        code2names = self.parameters.param_seq_dicio
+        code2names = self.parameters.seq_dicio
         species_ordenaded = [
             code2names[code][1] for code in [leaf.name for leaf in t]
         ]
